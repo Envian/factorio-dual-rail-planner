@@ -1,0 +1,10 @@
+{
+    "name": "dual-rail-planner",
+    "version": "0.0.1",
+    "factorio_version": "2.0",
+    "title": "Dual Rail Planner",
+    "author": "Envian",
+    "homepage": "",
+    "description": "Gives a rail planner which can place two directional rails.",
+    "dependencies": ["base >= 2.0", "? elevated-rails >= 2.0"]
+}
