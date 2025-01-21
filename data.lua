@@ -1,6 +1,7 @@
 require("scripts.constants")
 
 local railItemMap = {}
+local railEntityMap = {}
 
 local RAIL_TYPES = {
     "straight-rail",
@@ -14,15 +15,39 @@ local RAIL_TYPES = {
     "elevated-half-diagonal-rail",
 }
 
-function getRailDefine(railName)
+local function getRailDefine(railName)
     for _, railType in pairs(RAIL_TYPES) do
         if data.raw[railType][railName] then return data.raw[railType][railName] end
     end
 end
 
+local function makeRailItem(railName)
+    local rail = getRailDefine(railName)
+
+    if not railItemMap[railName] then
+        local fakeRail = {
+            type = "item",
+            name = FAKEITEM_PREFIX .. railName,
+            hidden = true,
+            hidden_in_factoriopedia = true,
+            stack_size = 1,
+            icons = rail.icons,
+            icon = rail.icon,
+            icon_size = rail.icon_size,
+            place_result = rail.name,
+            flags = {
+                "hide-from-bonus-gui",
+                "hide-from-fuel-tooltip",
+                "only-in-cursor",
+            },
+        }
+        railItemMap[railName] = true
+        data:extend({ fakeRail })
+    end
+end
+
 function registerPlanner(planner, options)
-    -- Start with a shortcut
-    local extensions = {{
+    data:extend({{
         type = "shortcut",
         name = SHORTCUT_PREFIX .. planner.name,
         localised_name = { "shortcut.planner-select-title", {"item-name." .. planner.name} },
@@ -31,34 +56,11 @@ function registerPlanner(planner, options)
         style = "blue",
         icon = planner.icon,
         small_icon = planner.icon,
-    }}
+    }})
 
-    for index, railName in pairs(planner.rails) do
-        local rail = getRailDefine(railName)
-
-        if not railItemMap[railName] then
-            local fakeRail = {
-                type = "item",
-                name = FAKREAIL_PREFIX .. railName,
-                hidden = true,
-                hidden_in_factoriopedia = true,
-                stack_size = 1,
-                icons = rail.icons,
-                icon = rail.icon,
-                icon_size = rail.icon_size,
-                place_result = rail.name,
-                flags = {
-                    "hide-from-bonus-gui",
-                    "hide-from-fuel-tooltip",
-                    "only-in-cursor",
-                },
-            }
-            railItemMap[railName] = true
-            table.insert(extensions, fakeRail)
-        end
-    end
-
-    data:extend(extensions)
+    -- for _, railName in pairs(planner.rails) do
+    --     makeRailItem(railName)
+    -- end
 end
 
 registerPlanner(data.raw["rail-planner"]["rail"])

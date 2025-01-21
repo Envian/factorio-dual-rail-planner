@@ -1,4 +1,4 @@
-require("scripts.helpers")
+local TURN = require("scripts.helpers.turn")
 
 RAIL_TYPE_TO_CATEGORY = {
     ["straight-rail"] = "straight",
@@ -300,16 +300,18 @@ RAIL_TURN_MAP = {
 for category, config in pairs(RAIL_PATH_CONFIG) do
     if category ~= "ramp" then
         for rotation, paths in pairs(config.paths) do
-            RAIL_TURN_MAP[doTurn(paths[1], TURN.AROUND)][paths[2]] = {
+            local forward, backward = unpack(paths)
+
+            RAIL_TURN_MAP[TURN.around(forward)][backward] = {
                 category = category,
                 rotation = rotation,
-                offset = { x = -config.edges[paths[1]].x, y = -config.edges[paths[1]].y },
+                offset = { x = -config.edges[forward].x, y = -config.edges[forward].y },
                 config = config,
             }
-            RAIL_TURN_MAP[doTurn(paths[2], TURN.AROUND)][paths[1]] = {
+            RAIL_TURN_MAP[TURN.around(backward)][forward] = {
                 category = category,
                 rotation = rotation,
-                offset = { x = -config.edges[paths[2]].x, y = -config.edges[paths[2]].y },
+                offset = { x = -config.edges[backward].x, y = -config.edges[backward].y },
                 config = config,
             }
         end

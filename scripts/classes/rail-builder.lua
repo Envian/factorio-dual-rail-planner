@@ -1,15 +1,17 @@
-require("scripts.helpers")
-require("scripts.rail-defines")
+local RailPointer = require("scripts.classes.rail-pointer")
+local RailSegment = require("scripts.classes.rail-segment")
+local TURN = require("scripts.helpers.turn")
 
-require("scripts.rail-segment")
-
-RailBuilder = {}
+local RailBuilder = {}
 RailBuilder.__index = RailBuilder
 
 -- { pointer, plannerName, player }
 function RailBuilder.new(params)
-    local builder = { }
-    setmetatable(builder, RailBuilder)
+    assert(getmetatable(params.pointer) == RailPointer)
+    assert(type(params.plannerName) == "string")
+    assert(params.player.object_name == "LuaPlayer")
+
+    local builder = {}
 
     builder.pointer = params.pointer
     builder.plannerName = params.plannerName
@@ -19,16 +21,17 @@ function RailBuilder.new(params)
     builder.straightsBuilt = 0
     builder.history = {}
 
+    setmetatable(builder, RailBuilder)
     return builder
 end
 
-function RailBuilder:extend(turnDirection, buildMode)
+function RailBuilder:extend(turnDirection)
     if turnDirection == TURN.STRAIGHT then
         self.straightsBuilt = self.straightsBuilt + 1
 
         -- Negative and zero here means there was a debt which was paid.
         if self.straightsBuilt > 0 then
-            self:build(RailSegment.fromPointer(self.pointer, TURN.STRAIGHT), buildMode)
+            self:build(RailSegment.fromPointer(self.pointer, TURN.STRAIGHT))
         end
 
         if self.straightsBuilt >= 0 then
@@ -44,16 +47,16 @@ function RailBuilder:extend(turnDirection, buildMode)
         end
 
         for n = 1, straightsToAdd or 0 do
-            self:extend(TURN.STRAIGHT, buildMode)
+            self:extend(TURN.STRAIGHT)
         end
 
-        self:build(RailSegment.fromPointer(self.pointer, TURN.RIGHT), buildMode)
+        self:build(RailSegment.fromPointer(self.pointer, TURN.RIGHT))
 
         self.leftsBuilt = 0
         self.straightsBuilt = 0
 
         for n = 1, RIGHT_TURN_EXTENSIONS.after[self.pointer.direction] or 0 do
-            self:extend(TURN.STRAIGHT, buildMode)
+            self:extend(TURN.STRAIGHT)
         end
     elseif turnDirection == TURN.LEFT then
         local leftTurnConfig = LEFT_TURN_CORRECTIONS[(self.pointer.direction + self.leftsBuilt) % 4]
@@ -86,10 +89,10 @@ function RailBuilder:extend(turnDirection, buildMode)
         for _, targetTurn in pairs(leftTurnConfig.extensions) do
             -- If the debt is partially paid, adjust here.
             if self.lastBuiltRail == TURN.STRAIGHT and self.straightsBuilt < 0 and self.pointer.direction == debtDirection then
-                self:build(RailSegment.fromPointer(self.pointer, TURN.STRAIGHT), buildMode)
+                self:build(RailSegment.fromPointer(self.pointer, TURN.STRAIGHT))
             end
 
-            self:build(RailSegment.fromPointer(self.pointer, targetTurn), buildMode)
+            self:build(RailSegment.fromPointer(self.pointer, targetTurn))
         end
 
         self.straightsBuilt = -leftTurnConfig.debt
@@ -98,28 +101,24 @@ function RailBuilder:extend(turnDirection, buildMode)
     return true
 end
 
-function RailBuilder:extendRamp(buildMode)
-    self:build(RailSegment.rampFromPointer(self.pointer), buildMode)
+function RailBuilder:extendRamp()
+    self:build(RailSegment.rampFromPointer(self.pointer))
     self.straightsBuilt = 0
     self.leftsBuilt = 0
     return true
 end
 
-function RailBuilder:cleanup(buildMode)
+function RailBuilder:cleanup()
     -- This is broken and wrong. move it to the manager
     if self.straightsBuilt < 0 then
         for n = 1, -self.straightsBuilt do
-            self:build(TURN.STRAIGHT, buildMode)
+            self:build(TURN.STRAIGHT)
         end
     end
 end
 
-function RailBuilder:build(rail, buildMode)
-    rail:build({
-        player = self.player,
-        buildMode = buildMode,
-        parts = PLANNER_PARTS[self.plannerName]
-    })
+function RailBuilder:build(rail)
+    rail:build(self.player, self.plannerName)
 
     table.insert(self.history, rail)
     if #self.history > RAIL_HISTORY_SIZE then
@@ -134,7 +133,7 @@ function RailBuilder:getRewind()
     local existingExtensions = filterForExistingSegments(reverseExtensions)
 
     -- Don't rewind if there are multiple options, or if its a ramp.
-    if #existingExtensions > 1 or (existingExtensions[1] and existingExtensions[1].category == "ramp") then
+    if #existingExtensions > 1 or (existingExtensions[1] and existingExtensions[1].type == "rail-ramp") then
         return nil
     else
         -- Return the real reverse if it exists, otherwise return the first (straight)
@@ -143,3 +142,4 @@ function RailBuilder:getRewind()
 end
 
 script.register_metatable("RailBuilder", RailBuilder)
+return RailBuilder

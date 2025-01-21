@@ -1,32 +1,34 @@
-require("scripts.constants")
+local TURN = require("scripts.helpers.turn")
+
+local position = require("scripts.helpers.position")
+local delay = require("scripts.helpers.delay")
+
+local RailPointer = require("scripts.classes.rail-pointer")
+local RailSegment = require("scripts.classes.rail-segment")
+local RailBuilder = require("scripts.classes.rail-builder")
+
 require("scripts.helpers")
-require("scripts.rail-defines")
 
-require("scripts.rail-builder")
-require("scripts.rail-segment")
-require("scripts.rail-pointer")
-
-Manager = {}
+local Manager = {}
 Manager.__index = Manager
 
 function Manager.new(player)
-    local planner = {}
-    setmetatable(planner, Manager)
+    local manager = {}
+    setmetatable(manager, Manager)
 
-    planner.player = player
-    planner.alerts = {}
+    manager.player = player
+    manager.alerts = {}
 
-    planner.enabled = false
-    planner.abort = false
-    planner.buildMode = nil
-    planner.mainPointer = nil
-    planner.oppositeBuilder = nil
-    planner.plannerName = nil
+    manager.enabled = false
+    manager.abort = false
+    manager.mainPointer = nil
+    manager.oppositeBuilder = nil
+    manager.plannerName = nil
 
-    planner.elevatedMode = false
-    planner.supportQueue = {}
+    manager.elevatedMode = false
+    manager.elevatedQueue = {}
 
-    return planner
+    return manager
 end
 
 function Manager:disable()
@@ -34,12 +36,7 @@ function Manager:disable()
         self.player.set_shortcut_toggled(SHORTCUT_PREFIX .. self.plannerName, false)
     end
 
-    if self.oppositeBuilder and self.oppositeBuilder.straightsBuilt < 0 then
-        -- Todo: make some straights
-    end
-
     self:reset()
-
     self.enabled = false
     self.abort = false
     self.plannerName = nil
@@ -49,13 +46,9 @@ function Manager:reset()
     if self.oppositeBuilder and self.oppositeBuilder.straightsBuilt < 0 then
         -- There's straights to build on the main path. Not in builder since builder is opposite only.
         for n = 1, -self.oppositeBuilder.straightsBuilt do
-            local extension = RailSegment.fromPointer(self.mainPointer, TURN.STRAIGHT)
-            extension:build({
-                player = self.player,
-                buildMode = self.buildMode,
-                parts = PLANNER_PARTS[self.plannerName]
-            })
-            self.mainPointer = extension.forward
+            local segment = RailSegment.fromPointer(self.mainPointer, TURN.STRAIGHT)
+            segment:build(self.player, self.plannerName)
+            self.mainPointer = segment.forward
         end
     end
 
@@ -63,7 +56,7 @@ function Manager:reset()
     self.oppositeBuilder = nil
 
     self.elevatedMode = false
-    self.supportQueue = nil
+    self.elevatedQueue = nil
     self.lastSuppport = nil
 end
 
@@ -93,28 +86,22 @@ function Manager:checkCursor()
     end
 end
 
-function Manager:entityPreBuilt(event)
-    self.buildMode = event.build_mode
-end
-
 function Manager:entityBuilt(event)
     if not self.enabled then return end
 
     if self.abort then
+        self.player.print("Aborting: " .. event.entity.name)
         -- Anything built during an abortion is invalid.
-        if self.player.can_reach_entity(event.entity) and self.player.mine_entity(event.entity) then
-            return
-        else
+        if not self.player.can_reach_entity(event.entity) or not self.player.mine_entity(event.entity) then
             event.entity.order_deconstruction(self.player.force, self.player)
-            return
         end
+        return
     end
 
     if event.entity.type == "rail-support" or event.entity.type == "rail-ramp" then
         self.elevatedMode = true
-        self.supportQueue = {}
+        self.elevatedQueue = {}
         self.lastSupport = event.entity
-
 
         -- Don't immidiately process rail supports.
         if event.entity.type == "rail-support" then
@@ -135,20 +122,20 @@ function Manager:entityBuilt(event)
             -- spawn a biter to tell them this is not supported.
         end
 
-        if #self.supportQueue == 0 then
+        if #self.elevatedQueue == 0 then
             -- If this is the first rail, we may already be done.
             if #forwardExtensions + #backwardExtensions == 1 then
                 self:resolveSupportBuild(newSegment)
                 return
             else
-                table.insert(self.supportQueue, newSegment)
+                table.insert(self.elevatedQueue, newSegment)
                 return
             end
         end
 
         -- When we're wedged between two rails we're done.
         if #forwardExtensions == 1 and #backwardExtensions == 1 then
-            if backwardExtensions[1]:isSame(self.supportQueue[#self.supportQueue]) then
+            if backwardExtensions[1]:isSame(self.elevatedQueue[#self.elevatedQueue]) then
                 newSegment:reverse()
                 forwardExtensions, backwardExtensions = backwardExtensions, forwardExtensions
             end
@@ -156,7 +143,7 @@ function Manager:entityBuilt(event)
             self:resolveSupportBuild(newSegment)
             return
         else
-            table.insert(self.supportQueue, newSegment)
+            table.insert(self.elevatedQueue, newSegment)
             return
         end
     end
@@ -170,8 +157,8 @@ function Manager:resolveSupportBuild(newSegment)
     if not self.elevatedMode then return end
 
     -- Reprocess the previous rails in reverse order.
-    for n = #self.supportQueue, 1, -1 do
-        self:handleRailBuilt(self.supportQueue[n])
+    for n = #self.elevatedQueue, 1, -1 do
+        self:handleRailBuilt(self.elevatedQueue[n])
 
         -- HandleRailBuild can reset the manager, which ends elevated mode.
         if not self.elevatedMode then return end
@@ -179,7 +166,7 @@ function Manager:resolveSupportBuild(newSegment)
 
     -- TODO: Build the support.
     self.elevatedMode = false
-    self.supportQueue = nil
+    self.elevatedQueue = nil
     self.lastSupport = nil
 end
 
@@ -196,10 +183,6 @@ function Manager:handleRailBuilt(newSegment)
         local forwardExtensions = filterForExistingSegments(RailSegment.getAllFromPointer(newSegment.forward))
         local backwardExtensions = filterForExistingSegments(RailSegment.getAllFromPointer(newSegment.backward))
 
-        -- Hide the "target" from the algorithm. Target is sent when rails are built in reverse during elevated rails.
-        if #forwardExtensions == 1 and #forwardExtensions[1] == target then forwardExtensions = {} end
-        if #backwardExtensions == 1 and #backwardExtensions[1] == target then backwardExtensions = {} end
-
         if #backwardExtensions == 0 and #forwardExtensions > 0 then
             newSegment:reverse()
             forwardExtensions, backwardExtensions = backwardExtensions, forwardExtensions
@@ -209,34 +192,34 @@ function Manager:handleRailBuilt(newSegment)
             self.mainPointer = newSegment.backward:createReverse()
             self.oppositeBuilder = RailBuilder.new({
                 pointer = RailPointer.new({
-                    position = addPositions(self.mainPointer.position, OPPOSITE_OFFSET[self.mainPointer.direction]),
+                    position = position.add(self.mainPointer.position, OPPOSITE_OFFSET[self.mainPointer.direction]),
                     direction = self.mainPointer.direction,
                     layer = self.mainPointer.layer,
                     surface = self.mainPointer.surface
                 }),
                 plannerName = self.plannerName,
                 player = self.player,
-            });
+            })
         end
     end
 
     -- Step 3: extend the rails
     if self.mainPointer then
-        if newSegment.category ~= "ramp" then
-            if not self.oppositeBuilder:extend(newSegment.turn, self.buildMode) then
+        if newSegment.type ~= "rail-ramp" then
+            if not self.oppositeBuilder:extend(newSegment.turn) then
                 self:handleBrokenRail(newSegment, self.oppositeBuilder.history[#self.oppositeBuilder.history])
                 return
             end
             self.mainPointer = newSegment.forward
         else
             local targetOppositePointer = RailPointer.new({
-                position = addPositions(self.mainPointer.position, OPPOSITE_OFFSET[self.mainPointer.direction]),
+                position = position.add(self.mainPointer.position, OPPOSITE_OFFSET[self.mainPointer.direction]),
                 direction = self.mainPointer.direction,
                 layer = self.mainPointer.layer,
                 surface = self.mainPointer.surface
             })
 
-            if not targetOppositePointer:isSame(self.oppositeBuilder.pointer) then
+            if targetOppositePointer ~= self.oppositeBuilder.pointer then
                 -- the current state of the builder isn't aligned. Mark an error and move on.
                 if #self.oppositeBuilder.history > 0 then
                     self:handleBrokenRail(newSegment, self.oppositeBuilder.history[#self.oppositeBuilder.history])
@@ -249,7 +232,7 @@ function Manager:handleRailBuilt(newSegment)
                 })
             end
 
-            if not self.oppositeBuilder:extendRamp(self.buildMode) then
+            if not self.oppositeBuilder:extendRamp() then
                 self:handleBrokenRail(newSegment, self.oppositeBuilder.history[#self.oppositeBuilder.history])
                 return
             end
@@ -265,9 +248,8 @@ function Manager:handleBrokenRail(mainSegment, oppositeSegment)
         self:reset()
         self.abort = true
         self.player.clear_cursor()
-        self.player.cursor_ghost = FAKREAIL_PREFIX .. PLANNER_PARTS[self.plannerName]["straight-rail"]
 
-        delay(2, function()
+        delay(5, function()
             -- Handle the cursor changing after an abort.
             self.player.clear_cursor() -- Just in the offchance the user selected something
             self.player.cursor_ghost = self.plannerName
@@ -311,3 +293,4 @@ function Manager:refreshAlerts()
 end
 
 script.register_metatable("Manager", Manager)
+return Manager
