@@ -1,9 +1,6 @@
 if script.active_mods["gvv"] then require("__gvv__.gvv")() end
 
-require("scripts.constants")
-
-DRP = {}
-
+local const = require("scripts.constants")
 local Manager = require("scripts.classes.manager")
 
 script.on_init(function()
@@ -14,8 +11,8 @@ script.on_init(function()
 end)
 
 script.on_event(defines.events.on_lua_shortcut, function(event)
-    if string.sub(event.prototype_name, 1, string.len(SHORTCUT_PREFIX)) == SHORTCUT_PREFIX then
-        local plannerName = string.sub(event.prototype_name, string.len(SHORTCUT_PREFIX) + 1)
+    if string.sub(event.prototype_name, 1, string.len(const.SHORTCUT_PREFIX)) == const.SHORTCUT_PREFIX then
+        local plannerName = string.sub(event.prototype_name, string.len(const.SHORTCUT_PREFIX) + 1)
         storage.managers[event.player_index]:togglePlanner(plannerName)
     end
 end)
@@ -25,6 +22,7 @@ script.on_event(defines.events.on_player_created, function(event)
 end)
 
 script.on_event(defines.events.on_player_removed, function(event)
+    -- TODO: Is there anything we need to clean up beyond just the manager?
     storage.managers[event.player_index] = nil
 end)
 
@@ -48,38 +46,16 @@ local entityFilter = {
 }
 
 script.on_event(defines.events.on_built_entity, function(event)
-    if capturedEntities then table.insert(capturedEntities, event.entity) end
-
-    if buildRecusionBlocker then return end
-
-    buildRecusionBlocker = true
     storage.managers[event.player_index]:entityBuilt(event)
-    buildRecusionBlocker = false
 end, entityFilter)
 
--- This is rarely needed but performance is a crutch.
 script.on_event(defines.events.on_marked_for_deconstruction, function(event)
-    local manager = storage.managers[event.player_index]
-
-    if manager.abort then
-        event.entity.cancel_deconstruction(manager.player.force, manager.player)
-    end
+    storage.managers[event.player_index]:entityDeconstructed(event)
 end)
 
-
--- Entity capture to help with buildFromCursor.
-DRP.entityCapture = {}
-local capturedEntities = nil
-
-function DRP.entityCapture.begin()
-    capturedEntities = {}
-end
-
-function DRP.entityCapture.finish()
-    local entities = capturedEntities
-    capturedEntities = nil
-    return entities
-end
+script.on_event({defines.events.on_redo_applied, defines.events.on_undo_applied}, function(event)
+    storage.managers[event.player_index]:undoRedoApplied(event)
+end)
 
 -- Additional events are handled in other files:
 -- on_tick -> helpers/delay.lua

@@ -1,3 +1,5 @@
+
+-- TODO  this won't survive a save load cycle
 local nextTickCallbacks = nil
 
 local function onNextTickHandler(event)

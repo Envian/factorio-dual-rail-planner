@@ -1,5 +1,7 @@
-local TURN = require("scripts.helpers.turn")
+local RAILDEFS = require("scripts.rail-config.common")
+local const = require("scripts.constants")
 
+local TURN = require("scripts.helpers.turn")
 local position = require("scripts.helpers.position")
 local delay = require("scripts.helpers.delay")
 
@@ -7,289 +9,217 @@ local RailPointer = require("scripts.classes.rail-pointer")
 local RailSegment = require("scripts.classes.rail-segment")
 local RailBuilder = require("scripts.classes.rail-builder")
 
-require("scripts.helpers")
-
 local Manager = {}
 Manager.__index = Manager
+
+local STATE = {
+    DISABLED = 0,
+    INACTIVE = 1,
+    BUILDING = 2,
+    ABORTING = 3,
+}
+Manager.STATE = STATE
 
 function Manager.new(player)
     local manager = {}
     setmetatable(manager, Manager)
 
     manager.player = player
+    manager.state = STATE.DISABLED
+    manager.plannerName = nil
+    manager.builder = nil
     manager.alerts = {}
 
-    manager.enabled = false
-    manager.abort = false
-    manager.mainPointer = nil
-    manager.oppositeBuilder = nil
-    manager.plannerName = nil
-
-    manager.elevatedMode = false
-    manager.elevatedQueue = {}
+    manager.lastRail = nil
+    manager.deconstructedEntities = nil
+    manager.builtEntities = nil
 
     return manager
 end
 
-function Manager:disable()
-    if self.plannerName then
-        self.player.set_shortcut_toggled(SHORTCUT_PREFIX .. self.plannerName, false)
-    end
+function Manager:enable(plannerName)
+    self.player.set_shortcut_toggled(const.SHORTCUT_PREFIX .. plannerName, true)
 
-    self:reset()
-    self.enabled = false
-    self.abort = false
-    self.plannerName = nil
+    self.state = STATE.INACTIVE
+    self.plannerName = plannerName
+    self.player.clear_cursor()
+    self.player.cursor_ghost = plannerName
+    self.deconstructedEntities = {}
+    self.builtEntities = {}
 end
 
-function Manager:reset()
-    if self.oppositeBuilder and self.oppositeBuilder.straightsBuilt < 0 then
-        -- There's straights to build on the main path. Not in builder since builder is opposite only.
-        for n = 1, -self.oppositeBuilder.straightsBuilt do
-            local segment = RailSegment.fromPointer(self.mainPointer, TURN.STRAIGHT)
-            segment:build(self.player, self.plannerName)
-            self.mainPointer = segment.forward
-        end
-    end
+function Manager:disable()
+    self.player.set_shortcut_toggled(const.SHORTCUT_PREFIX .. self.plannerName, false)
 
-    self.mainPointer = nil
-    self.oppositeBuilder = nil
+    if self.builder then self.builder:finalize() end
 
-    self.elevatedMode = false
-    self.elevatedQueue = nil
-    self.lastSuppport = nil
+    self.state = STATE.DISABLED
+    self.plannerName = plannerName
+    self.builder = nil
+    self.lastRail = nil
+    self.deconstructedEntities = nil
+    self.builtEntities = nil
 end
 
 function Manager:togglePlanner(plannerName)
-    if self.enabled then
+    if self.state == STATE.INACTIVE then
         self:disable()
         self.player.clear_cursor()
-    else
-        self.plannerName = plannerName
-        self.enabled = true
-        self.player.set_shortcut_toggled(SHORTCUT_PREFIX .. plannerName, true)
-        self.player.clear_cursor()
-        self.player.cursor_ghost = plannerName
+    elseif self.state == STATE.DISABLED then
+        self:enable(plannerName)
     end
 end
 
 function Manager:checkCursor()
-    if not self.enabled or self.abort then return end
+    if self.state == STATE.DISABLED or self.state == STATE.ABORTING then return end
 
     -- Check if we're still using the same planner.
-    local stack = self.player.cursor_stack
-    local ghost = self.player.cursor_ghost
-    local item = (stack and stack.valid_for_read and stack) or (ghost and ghost.name)
-
-    if not item or item.name ~= self.plannerName then
+    if not self.player.cursor_ghost or self.player.cursor_ghost.name.name ~= self.plannerName then
         self:disable()
     end
 end
 
 function Manager:entityBuilt(event)
-    if not self.enabled then return end
+    if self.state == STATE.DISABLED then return end
 
-    if self.abort then
-        self.player.print("Aborting: " .. event.entity.name)
-        -- Anything built during an abortion is invalid.
-        if not self.player.can_reach_entity(event.entity) or not self.player.mine_entity(event.entity) then
-            event.entity.order_deconstruction(self.player.force, self.player)
-        end
+    if self.state == STATE.ABORTING then
+        event.entity.order_deconstruction(self.player.force)
         return
     end
 
-    if event.entity.type == "rail-support" or event.entity.type == "rail-ramp" then
-        self.elevatedMode = true
-        self.elevatedQueue = {}
-        self.lastSupport = event.entity
+    -- Track all the entities involved in the upcoming "rail"
+    table.insert(self.builtEntities, event.entity)
 
-        -- Don't immidiately process rail supports.
-        if event.entity.type == "rail-support" then
-            return
-        end
+    if event.entity.type == "rail-support"
+    or event.entity.ghost_type == "rail-support"
+    or event.entity.name == "tile-ghost"
+    then
+        -- We only track these things so we can abort them
+        return
     end
 
-    local newSegment = RailSegment.fromEntity(event.entity, self.mainPointer and self.mainPointer.direction)
+    local segment = RailSegment.fromEntity(event.entity)
 
-    if not self.elevatedMode then
-        self:handleRailBuilt(newSegment)
+    -- Will need two discrete branches - elevated and regular.
+    if RAILDEFS.TYPE_TO_LAYER[segment.type] == defines.rail_layer.ground then
+        self:handleGround(segment)
     else
-        local forwardExtensions = filterForExistingSegments(RailSegment.getAllFromPointer(newSegment.forward))
-        local backwardExtensions = filterForExistingSegments(RailSegment.getAllFromPointer(newSegment.backward))
+        self:handleElevated(segment)
+    end
 
-        if #forwardExtensions == 0 and #backwardExtensions == 0 then
-            -- Check for supports. if the user is building off a support freeform.
-            -- spawn a biter to tell them this is not supported.
-        end
+    -- After a rail is built, reset the supporting components.
+    self.deconstructedEntities = {}
+    self.builtEntities = {}
+    self.lastRail = segment
+end
 
-        if #self.elevatedQueue == 0 then
-            -- If this is the first rail, we may already be done.
-            if #forwardExtensions + #backwardExtensions == 1 then
-                self:resolveSupportBuild(newSegment)
-                return
-            else
-                table.insert(self.elevatedQueue, newSegment)
-                return
+function Manager:handleGround(segment)
+    if self.lastRail then
+        -- Align the segments. If a builder is active, only align the new one. Otherwise align both
+        if self.builder then self.lastRail:alignOther(segment)
+        else self.lastRail:alignSegments(segment) end
+
+        if self.lastRail:connectedTo(segment) then
+            -- Scenario 1a: The player placed two rails, the 2nd connected to the 1st.
+            if not self.builder then
+                self.builder = RailBuilder.new(self.lastRail, "2-tile")
+                self:extend(self.lastRail)
             end
-        end
-
-        -- When we're wedged between two rails we're done.
-        if #forwardExtensions == 1 and #backwardExtensions == 1 then
-            if backwardExtensions[1]:isSame(self.elevatedQueue[#self.elevatedQueue]) then
-                newSegment:reverse()
-                forwardExtensions, backwardExtensions = backwardExtensions, forwardExtensions
-            end
-
-            self:resolveSupportBuild(newSegment)
+            self:extend(segment)
             return
         else
-            table.insert(self.elevatedQueue, newSegment)
-            return
+            -- Scenario 1b: The player placed a followup rail, but it is not connected.
+            if self.builder then
+                -- TODO: How do we finalize here?
+                -- self.builder:finalize()
+                self.builder = nil
+            end
         end
+    end
+
+    -- Scenario 2: A rail was placed, but it either is not connected to the
+    -- previous rail, or there was no previous rail. We can extend if its built off an existing rail.
+    local forwardExtensions = RailSegment.getAllExistingFromPointer(segment.forward)
+    local backwardExtensions = RailSegment.getAllExistingFromPointer(segment.backward)
+
+    if #forwardExtensions == 1 and #backwardExtensions == 0 then
+        segment:reverse()
+        forwardExtensions, backwardExtensions = backwardExtensions, forwardExtensions
+    end
+
+    if #forwardExtensions == 0 and #backwardExtensions == 1 then
+        self.builder = RailBuilder.new(segment, "2-tile")
+        self:extend(segment)
     end
 end
 
-function Manager:resolveSupportBuild(newSegment)
-    -- Connected to the old rail
-    self:handleRailBuilt(newSegment)
-
-    -- HandleRailBuild can reset the manager, which ends elevated mode.
-    if not self.elevatedMode then return end
-
-    -- Reprocess the previous rails in reverse order.
-    for n = #self.elevatedQueue, 1, -1 do
-        self:handleRailBuilt(self.elevatedQueue[n])
-
-        -- HandleRailBuild can reset the manager, which ends elevated mode.
-        if not self.elevatedMode then return end
-    end
-
-    -- TODO: Build the support.
-    self.elevatedMode = false
-    self.elevatedQueue = nil
-    self.lastSupport = nil
+function Manager:handleElevated(segment)
+    -- TODO: Build the elevated rail algorithm
 end
 
-function Manager:handleRailBuilt(newSegment)
-    -- Check 1: Reset this path if the newly placed rail is not connected.
-    if self.mainPointer then
-        if not self.mainPointer:isOpposite(newSegment.backward) then
-            self:reset()
-        end
-    end
+function Manager:extend(segment)
+    if self.state == STATE.INACTIVE then
+        self.state = STATE.BUILDING
+        delay(0, function()
+            local initialState = self.state
 
-    -- Step 2: Create pointers if they do not exist.
-    if not self.mainPointer then
-        local forwardExtensions = filterForExistingSegments(RailSegment.getAllFromPointer(newSegment.forward))
-        local backwardExtensions = filterForExistingSegments(RailSegment.getAllFromPointer(newSegment.backward))
-
-        if #backwardExtensions == 0 and #forwardExtensions > 0 then
-            newSegment:reverse()
-            forwardExtensions, backwardExtensions = backwardExtensions, forwardExtensions
-        end
-
-        if #forwardExtensions == 0 and #backwardExtensions > 0 then
-            self.mainPointer = newSegment.backward:createReverse()
-            self.oppositeBuilder = RailBuilder.new({
-                pointer = RailPointer.new({
-                    position = position.add(self.mainPointer.position, OPPOSITE_OFFSET[self.mainPointer.direction]),
-                    direction = self.mainPointer.direction,
-                    layer = self.mainPointer.layer,
-                    surface = self.mainPointer.surface
-                }),
-                plannerName = self.plannerName,
-                player = self.player,
-            })
-        end
-    end
-
-    -- Step 3: extend the rails
-    if self.mainPointer then
-        if newSegment.type ~= "rail-ramp" then
-            if not self.oppositeBuilder:extend(newSegment.turn) then
-                self:handleBrokenRail(newSegment, self.oppositeBuilder.history[#self.oppositeBuilder.history])
-                return
-            end
-            self.mainPointer = newSegment.forward
-        else
-            local targetOppositePointer = RailPointer.new({
-                position = position.add(self.mainPointer.position, OPPOSITE_OFFSET[self.mainPointer.direction]),
-                direction = self.mainPointer.direction,
-                layer = self.mainPointer.layer,
-                surface = self.mainPointer.surface
-            })
-
-            if targetOppositePointer ~= self.oppositeBuilder.pointer then
-                -- the current state of the builder isn't aligned. Mark an error and move on.
-                if #self.oppositeBuilder.history > 0 then
-                    self:handleBrokenRail(newSegment, self.oppositeBuilder.history[#self.oppositeBuilder.history])
-                    return
-                end
-                self.oppositeBuilder = RailBuilder.new({
-                    pointer = targetOppositePointer,
-                    plannerName = self.plannerName,
-                    player = self.player,
-                })
+            if self.builder then
+                self.state = STATE.DISABLED
+                self.builder:build(self.player, self.plannerName)
+                self.state = STATE.INACTIVE
             end
 
-            if not self.oppositeBuilder:extendRamp() then
-                self:handleBrokenRail(newSegment, self.oppositeBuilder.history[#self.oppositeBuilder.history])
-                return
+            if initialState == STATE.ABORTING then
+                self.builder = nil
+                self.player.clear_cursor()
+                self.player.cursor_ghost = self.plannerName
             end
-            self.mainPointer = newSegment.forward
-        end
-    end
-end
-
-function Manager:handleBrokenRail(mainSegment, oppositeSegment)
-    if true then
-        -- Abort mode
-        mainSegment:deconstruct(self.player)
-        self:reset()
-        self.abort = true
-        self.player.clear_cursor()
-
-        delay(5, function()
-            -- Handle the cursor changing after an abort.
-            self.player.clear_cursor() -- Just in the offchance the user selected something
-            self.player.cursor_ghost = self.plannerName
-            self.abort = false
         end)
-    else
-        -- Notify to Fix Mode
-        self:registerBrokenRailAlert(oppositeSegment:getEntity())
-        self:reset()
     end
-end
 
-function Manager:registerBrokenRailAlert(entity)
-    self.player.add_custom_alert(entity, { type = "item", name = self.plannerName }, "Broken Rail!", true)
+    if not self.builder:handleExtension(segment) then
+        self.player.print("[Dual Rail Planner] Could not complete the turn.")
+        -- TODO: Add support for both abort and notify mode.
 
-    local elevated = TYPE_TO_LAYER[entity.type == "entity-ghost" and entity.ghost_type or entity.type] == defines.rail_layer.elevated
-
-    self.alerts[entity] = {
-        expires = game.tick + ALERT_DURATION,
-        sprite = rendering.draw_sprite({
-            sprite = ALERT_SPRITE,
-            target = {
-                entity = entity,
-                offset = elevated and { x = 0, y = -3 } or nil,
-            },
-            surface = entity.surface,
-            players = { self.player },
-        })
-    }
-end
-
-function Manager:refreshAlerts()
-    for entity, config in pairs(self.alerts) do
-        if not entity.valid or game.tick > config.expires then
-            if config.sprite.valid then config.sprite.destroy() end
-            self.alerts[entity] = nil
-        else
-            self.player.add_custom_alert(entity, { type = "item", name = "rail" }, "Broken Rail!", true)
+        -- Abort whatever the player last built.
+        for _, entity in pairs(self.deconstructedEntities) do
+            if entity and entity.valid then
+                entity.cancel_deconstruction(self.player.force)
+            end
         end
+
+        for _, entity in pairs(self.builtEntities) do
+            if entity and entity.valid then
+                entity.order_deconstruction(self.player.force)
+            end
+        end
+
+        self.deconstructedEntities = {}
+        self.builtEntities = {}
+
+        -- Build what we can.
+        self.builder:finalize()
+        self.state = STATE.ABORTING
+
+        -- Clears the cursor and resets the user's planner.
+        self.player.cursor_stack.set_stack("blueprint")
+        self.player.cursor_stack_temporary = true
     end
+end
+
+function Manager:entityDeconstructed(event)
+    if state == STATE.DISABLED then
+        return
+    elseif self.state == STATE.ABORTING then
+        event.entity.cancel_deconstruction(self.player.force)
+        return
+    else
+        table.insert(self.deconstructedEntities, event.entity)
+    end
+end
+
+function Manager:undoRedoApplied(event)
+    -- abort anything the builder is doing.
 end
 
 script.register_metatable("Manager", Manager)
