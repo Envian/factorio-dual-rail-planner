@@ -12,7 +12,7 @@ local CACHE_STATE = {
     CACHED = 2,
 }
 
-RailSegment = {}
+local RailSegment = {}
 RailSegment.__index = RailSegment
 
 function RailSegment.fromPointer(pointer, turn)
@@ -102,7 +102,7 @@ function RailSegment.fromEntity(rail)
     segment.backward = RailPointer.new({
         position = position.add(segment.position, config.edges[backward]),
         direction = backward,
-        layer = RAILDEFS.TYPE_TO_LAYER[segment.type],
+        layer = type == "rail-ramp" and defines.rail_layer.ground or RAILDEFS.TYPE_TO_LAYER[segment.type],
         surface = rail.surface,
     })
 
@@ -133,21 +133,27 @@ function RailSegment.getAllExistingFromPointer(pointer)
     return result
 end
 
-
 function RailSegment:reverse()
     self.turn = -self.turn
     self.forward, self.backward = self.backward, self.forward
 end
 
+function RailSegment:alignSelf(target)
+    -- Reverses self so this.forward -> target.backward
+    if self.backward:isOpposite(target.backward) then
+        self:reverse()
+    end
+end
+
 function RailSegment:alignOther(target)
-    -- Flips the target rail so that this rail points to it.
+    -- Reverses the target so this.forward -> target.backward
     if self.forward:isOpposite(target.forward) then
         target:reverse()
     end
 end
 
 function RailSegment:alignSegments(target)
-    -- Align both rails so that the current one points to the target one.
+    -- Reverses both so this.forward -> target.backward
     if self.backward:isOpposite(target.backward) then
         self:reverse()
     elseif self.backward:isOpposite(target.forward) then

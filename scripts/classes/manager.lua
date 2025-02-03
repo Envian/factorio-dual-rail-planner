@@ -28,7 +28,6 @@ function Manager.new(player)
     manager.state = STATE.DISABLED
     manager.plannerName = nil
     manager.builder = nil
-    manager.alerts = {}
 
     manager.lastRail = nil
     manager.deconstructedEntities = nil
@@ -51,7 +50,10 @@ end
 function Manager:disable()
     self.player.set_shortcut_toggled(const.SHORTCUT_PREFIX .. self.plannerName, false)
 
-    if self.builder then self.builder:finalize() end
+    if self.builder then
+        self.builder:finalize()
+        self.builder:build(self.player, self.plannerName)
+    end
 
     self.state = STATE.DISABLED
     self.plannerName = plannerName
@@ -102,18 +104,20 @@ function Manager:entityBuilt(event)
 
     -- Will need two discrete branches - elevated and regular.
     if RAILDEFS.TYPE_TO_LAYER[segment.type] == defines.rail_layer.ground then
-        self:handleGround(segment)
+        self:handleRail(segment)
+        self.deconstructedEntities = {}
+        self.builtEntities = {}
+        self.lastRail = segment
     else
-        self:handleElevated(segment)
-    end
-
-    -- After a rail is built, reset the supporting components.
+        if self:handleElevated(segment) then
     self.deconstructedEntities = {}
     self.builtEntities = {}
     self.lastRail = segment
+        end
+    end
 end
 
-function Manager:handleGround(segment)
+function Manager:handleRail(segment)
     if self.lastRail then
         -- Align the segments. If a builder is active, only align the new one. Otherwise align both
         if self.builder then self.lastRail:alignOther(segment)
@@ -130,8 +134,7 @@ function Manager:handleGround(segment)
         else
             -- Scenario 1b: The player placed a followup rail, but it is not connected.
             if self.builder then
-                -- TODO: How do we finalize here?
-                -- self.builder:finalize()
+                -- TODO: Reset Scenario
                 self.builder = nil
             end
         end
@@ -142,12 +145,12 @@ function Manager:handleGround(segment)
     local forwardExtensions = RailSegment.getAllExistingFromPointer(segment.forward)
     local backwardExtensions = RailSegment.getAllExistingFromPointer(segment.backward)
 
-    if #forwardExtensions == 1 and #backwardExtensions == 0 then
+    if #forwardExtensions > 0 and #backwardExtensions == 0 then
         segment:reverse()
         forwardExtensions, backwardExtensions = backwardExtensions, forwardExtensions
     end
 
-    if #forwardExtensions == 0 and #backwardExtensions == 1 then
+    if #forwardExtensions == 0 and #backwardExtensions > 0 then
         self.builder = RailBuilder.new(segment, "2-tile")
         self:extend(segment)
     end
@@ -214,7 +217,11 @@ function Manager:entityDeconstructed(event)
         event.entity.cancel_deconstruction(self.player.force)
         return
     else
+         if self.deconstructedEntities then
         table.insert(self.deconstructedEntities, event.entity)
+         else
+            self.player.print("Bug Detected: decon nil " .. self.state)
+        end
     end
 end
 

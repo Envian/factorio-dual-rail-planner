@@ -16,7 +16,7 @@ function RailBuilder.new(rail, spacing)
     local originDirection = TURN.around(rail.backward.direction)
 
     builder.spacing = spacing
-    builder.mainPointer = rail.forward
+    builder.mainPointer = rail.backward:createReverse()
     builder.oppositePointer = RailPointer.new({
         position = position.add(rail.backward.position, RAILDEFS.SPACING[spacing].OPPOSITE_OFFSET[originDirection]),
         direction = originDirection,
@@ -38,6 +38,8 @@ function RailBuilder:handleExtension(segment)
     if segment.type == "rail-ramp" then
         if self:isAligned() then
             self:queueBuild(RailSegment.rampFromPointer(self.oppositePointer))
+            self.mainPointer = segment.forward
+            return true
         else
             -- Cannot extend a ramp if the builder is not aligned.
             return false
@@ -137,8 +139,8 @@ end
 
 function RailBuilder:isAligned()
     local expectedPointer = RailPointer.new({
-        position = position.add(self.mainPointer.position, RAILDEFS.SPACING[self.spacing].OPPOSITE_OFFSET[originDirection]),
-        direction = originDirection,
+        position = position.add(self.mainPointer.position, RAILDEFS.SPACING[self.spacing].OPPOSITE_OFFSET[self.mainPointer.direction]),
+        direction = self.mainPointer.direction,
         layer = self.mainPointer.layer,
         surface = self.mainPointer.surface,
     })
@@ -199,10 +201,21 @@ function RailBuilder:build(player, plannerName)
             direction = segment.rotation,
         })
         -- Blueprints are always centered around the mid point.
+        -- Is there a better way to do this. cause come on.
         if segment.position.x < min.x then min.x = segment.position.x end
         if segment.position.y < min.y then min.y = segment.position.y end
         if segment.position.x > max.x then max.x = segment.position.x end
         if segment.position.y > max.y then max.y = segment.position.y end
+        -- Ramps are big. Everythign else is small. handle offset specially.
+        if segment.type == "rail-ramp" then
+            if segment.rotation == defines.direction.north or segment.rotation == defines.direction.south then
+                if (segment.position.y - 6) < min.y then min.y = (segment.position.y - 6) end
+                if (segment.position.y + 6) > max.y then max.y = (segment.position.y + 6) end
+            else
+                if (segment.position.x - 6) < min.x then min.x = (segment.position.x - 6) end
+                if (segment.position.x + 6) > max.x then max.x = (segment.position.x + 6) end
+            end
+        end
     end
 
     local offset = {

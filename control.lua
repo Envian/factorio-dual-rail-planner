@@ -42,6 +42,7 @@ local entityFilter = {
     { mode = "or", filter = "ghost_type", type = "elevated-straight-rail" },
     { mode = "or", filter = "ghost_type", type = "elevated-half-diagonal-rail" },
     { mode = "or", filter = "ghost_type", type = "elevated-curved-rail-a" },
+    { mode = "or", filter = "ghost_type", type = "elevated-curved-rail-b" },
     { mode = "or", filter = "name", name = "tile-ghost" },
 }
 
