@@ -138,17 +138,12 @@ function RailSegment:reverse()
     self.forward, self.backward = self.backward, self.forward
 end
 
-function RailSegment:alignSelf(target)
-    -- Reverses self so this.forward -> target.backward
-    if self.backward:isOpposite(target.backward) then
-        self:reverse()
-    end
-end
+function RailSegment:alignAwayFrom(target)
+    if getmetatable(target) == RailSegment then target = target.forward end
 
-function RailSegment:alignOther(target)
-    -- Reverses the target so this.forward -> target.backward
-    if self.forward:isOpposite(target.forward) then
-        target:reverse()
+    -- Reverses self so this backward -> target forward
+    if self.forward:isOpposite(target) then
+        self:reverse()
     end
 end
 
@@ -189,7 +184,7 @@ function RailSegment:getEntity()
     --     self.__cacheState = self.__rail == nil and CACHE_STATE.NIL or CACHE_STATE.CACHED
     -- end
     -- return self.__rail
-    return self.surface.find_entities_filtered({
+    local found = self.surface.find_entities_filtered({
         type = self.type,
         position = self.position,
         direction = self.rotation,
@@ -201,6 +196,13 @@ function RailSegment:getEntity()
         direction = self.rotation,
         limit = 1
     })[1]
+
+    -- find can find entities which collide with a spot, but aren't centered there.
+    -- we only want the centered entities.
+    if found and found.position.x == self.position.x and found.position.y == self.position.y then
+        return found
+    end
+    return nil
 end
 
 function RailSegment:__eq(other)

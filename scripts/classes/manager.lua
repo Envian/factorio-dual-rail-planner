@@ -30,6 +30,7 @@ function Manager.new(player)
     manager.builder = nil
 
     manager.lastRail = nil
+    manager.savedElevated = nil
     manager.deconstructedEntities = nil
     manager.builtEntities = nil
 
@@ -43,6 +44,7 @@ function Manager:enable(plannerName)
     self.plannerName = plannerName
     self.player.clear_cursor()
     self.player.cursor_ghost = plannerName
+    self.savedElevated = {}
     self.deconstructedEntities = {}
     self.builtEntities = {}
 end
@@ -59,8 +61,20 @@ function Manager:disable()
     self.plannerName = plannerName
     self.builder = nil
     self.lastRail = nil
+    self.savedElevated = nil
     self.deconstructedEntities = nil
     self.builtEntities = nil
+end
+
+function Manager:reset()
+    if self.builder then
+        self.builder = nil
+    end
+
+    self.savedElevated = {}
+    self.deconstructedEntities = {}
+    self.builtEntities = {}
+    self.lastRail = nil
 end
 
 function Manager:togglePlanner(plannerName)
@@ -81,7 +95,19 @@ function Manager:checkCursor()
     end
 end
 
+local counter = 0
+
 function Manager:entityBuilt(event)
+    rendering.draw_text({
+        text = counter,
+        surface = event.entity.surface,
+        target = event.entity,
+        color = {r = 1, g = 0, b = 1},
+        alignment = "center",
+        vertical_alignment = "middle",
+    })
+    counter = counter + 1
+
     if self.state == STATE.DISABLED then return end
 
     if self.state == STATE.ABORTING then
@@ -104,23 +130,23 @@ function Manager:entityBuilt(event)
 
     -- Will need two discrete branches - elevated and regular.
     if RAILDEFS.TYPE_TO_LAYER[segment.type] == defines.rail_layer.ground then
-        self:handleRail(segment)
+        self:handleGround(segment)
         self.deconstructedEntities = {}
         self.builtEntities = {}
         self.lastRail = segment
     else
         if self:handleElevated(segment) then
-    self.deconstructedEntities = {}
-    self.builtEntities = {}
-    self.lastRail = segment
+            self.deconstructedEntities = {}
+            self.builtEntities = {}
+            self.savedElevated = {}
         end
     end
 end
 
-function Manager:handleRail(segment)
+function Manager:handleGround(segment)
     if self.lastRail then
         -- Align the segments. If a builder is active, only align the new one. Otherwise align both
-        if self.builder then self.lastRail:alignOther(segment)
+        if self.builder then segment:alignAwayFrom(self.lastRail)
         else self.lastRail:alignSegments(segment) end
 
         if self.lastRail:connectedTo(segment) then
@@ -157,10 +183,94 @@ function Manager:handleRail(segment)
 end
 
 function Manager:handleElevated(segment)
-    -- TODO: Build the elevated rail algorithm
+    local lastRail = #self.savedElevated > 0 and self.savedElevated[#self.savedElevated]
+
+    -- Align segments in the order we detected them. Guarantees that everything is aligned.
+    if #self.savedElevated == 1 then
+        lastRail:alignSegments(segment)
+    elseif lastRail then
+        segment:alignAwayFrom(lastRail)
+    end
+
+    if not lastRail then
+        -- Scenario 1: This is the first rail for the builder we place.
+        if self.builder then
+            -- If a builder exists, only connect to that.
+            segment:alignAwayFrom(self.builder.mainPointer)
+            if segment.backward:isOpposite(self.builder.mainPointer) then
+                -- Scenario 1a: First rail and its connected
+                self:extend(segment)
+                return true
+            end
+        else
+            -- No builder, Check if we can connect to an existing rail
+            local forwardExtensions = RailSegment.getAllExistingFromPointer(segment.forward)
+            local backwardExtensions = RailSegment.getAllExistingFromPointer(segment.backward)
+
+            if #backwardExtensions == 0 and #forwardExtensions > 0 then
+                segment:reverse()
+                forwardExtensions, backwardExtensions = backwardExtensions, forwardExtensions
+            end
+
+            if #forwardExtensions == 0 and #backwardExtensions > 0 then
+                -- Scenario 1b: No builder, but connected to an existing rail.
+                self.builder = RailBuilder.new(segment, "2-tile")
+                self:extend(segment)
+                return true
+            end
+        end
+
+        -- Scenario 1x: First rail isn't connected to the builder, or an existing rail.
+        table.insert(self.savedElevated, segment)
+        return false
+    end
+
+    -- Handle the scenario where we're not the first rail tracked.
+    if not lastRail.forward:isOpposite(segment.backward) then
+        -- Fail Case: We cannot extend here.
+        -- This happens when extending from a support with no rails.
+        self.player.print("[Dual Rail Planner] Could not complete elevated rail.")
+        self:reset()
+        return false
+    end
+
+    if self.builder then
+        if segment.forward:isOpposite(self.builder.mainPointer) then
+            -- Scenario 2a: we bonked into the builder.
+            segment:reverse()
+            self:extend(segment)
+
+            for n = #self.savedElevated, 1, -1 do
+                self.savedElevated[n]:reverse()
+                self:extend(self.savedElevated[n])
+            end
+            return true
+        end
+    else
+        local forwardExtensions = RailSegment.getAllExistingFromPointer(segment.forward)
+        if #forwardExtensions > 0 then
+            -- scenario 2b: We bonked into an existing rail.
+            segment:reverse()
+            self.builder = RailBuilder.new(segment, "2-tile")
+            self:extend(segment)
+
+            for n = #self.savedElevated, 1, -1 do
+                self.savedElevated[n]:reverse()
+                self:extend(self.savedElevated[n])
+            end
+
+            return true
+        end
+    end
+
+    -- Scenario 2x - didn't bonk into anything.
+    table.insert(self.savedElevated, segment)
+    return false
 end
 
 function Manager:extend(segment)
+    if self.state == STATE.ABORTING then return end
+
     if self.state == STATE.INACTIVE then
         self.state = STATE.BUILDING
         delay(0, function()
@@ -218,7 +328,7 @@ function Manager:entityDeconstructed(event)
         return
     else
          if self.deconstructedEntities then
-        table.insert(self.deconstructedEntities, event.entity)
+            table.insert(self.deconstructedEntities, event.entity)
          else
             self.player.print("Bug Detected: decon nil " .. self.state)
         end
