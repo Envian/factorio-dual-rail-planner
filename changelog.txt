@@ -1,12 +1,13 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.0.1
-Date: 2025-01-19
+Date: 2025-02-02
   Features:
     - Adds a toolbar button to enable dual rail planner.
-    - Utilizes the standard rail planner, and builds the opposite track in real time.
+    - Utilizes the standard rail planner, and builds the opposite rail in real time.
     - Supports two way rails with a 2 tile gap.
+    - Rail planner will self-cancel when it can't make an opposite rail.
   Known Issues:
-    - Poor support for elevated rails. Will likely experience unexpected behavior,
-      especially with tracks that run along existing supports.
+    - The secondary rail for elevated rails will not receive supports.
     - The left turn algorithm is incomplete. There are some patterns of left turns
       where the algorithm gives up, but have easy solutions.
+    - Some bugs exist which cause issues when transitioning between rail layers.

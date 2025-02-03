@@ -95,19 +95,7 @@ function Manager:checkCursor()
     end
 end
 
-local counter = 0
-
 function Manager:entityBuilt(event)
-    rendering.draw_text({
-        text = counter,
-        surface = event.entity.surface,
-        target = event.entity,
-        color = {r = 1, g = 0, b = 1},
-        alignment = "center",
-        vertical_alignment = "middle",
-    })
-    counter = counter + 1
-
     if self.state == STATE.DISABLED then return end
 
     if self.state == STATE.ABORTING then
@@ -321,17 +309,13 @@ function Manager:extend(segment)
 end
 
 function Manager:entityDeconstructed(event)
-    if state == STATE.DISABLED then
+    if self.state == STATE.DISABLED then
         return
     elseif self.state == STATE.ABORTING then
         event.entity.cancel_deconstruction(self.player.force)
         return
     else
-         if self.deconstructedEntities then
-            table.insert(self.deconstructedEntities, event.entity)
-         else
-            self.player.print("Bug Detected: decon nil " .. self.state)
-        end
+        table.insert(self.deconstructedEntities, event.entity)
     end
 end
 
