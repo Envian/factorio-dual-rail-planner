@@ -52,10 +52,10 @@ end, entityFilter)
 
 script.on_event(defines.events.on_marked_for_deconstruction, function(event)
     -- Robots which deconstruct rocks produce ghost items marked for deconstruction.
-    -- those events do not have a player index.
-    if event.entity.name == "item-on-ground" then return end
-
-    storage.managers[event.player_index]:entityDeconstructed(event)
+    -- those events do not have a player index. Same with some other events.
+    if event.player_index then
+        storage.managers[event.player_index]:entityDeconstructed(event)
+    end
 end)
 
 script.on_event({defines.events.on_redo_applied, defines.events.on_undo_applied}, function(event)

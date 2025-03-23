@@ -19,9 +19,9 @@ function validate.railEntity(rail)
     if not rail.valid then return false end
 
     if rail.type == "entity-ghost" then
-        return not not RAILDEFS.RAIL_TYPE_TO_CATEGORY[rail.ghost_type]
+        return not not RAILDEFS.RAIL_TYPE_CONFIG[rail.ghost_type]
     else
-        return not not RAILDEFS.RAIL_TYPE_TO_CATEGORY[rail.type]
+        return not not RAILDEFS.RAIL_TYPE_CONFIG[rail.type]
     end
 end
 

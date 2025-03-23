@@ -9,6 +9,9 @@ local RailSegment = require("scripts.classes.rail-segment")
 local RailBuilder = {}
 RailBuilder.__index = RailBuilder
 
+local SIGNAL_DISTANCE = 40
+local SUPPORT_DISTANCE = 11 -- TODO: Pull from the planner.
+
 function RailBuilder.new(rail, spacing)
     assert(getmetatable(rail) == RailSegment)
 
@@ -29,6 +32,10 @@ function RailBuilder.new(rail, spacing)
     builder.leftsBuilt = 0
     builder.straightsBuilt = 0
 
+    builder.lengthSinceSignal = 0
+    builder.lengthSinceSupport = 0
+    builder.lengthUntilSupport = 0
+
     setmetatable(builder, RailBuilder)
     return builder
 end
@@ -39,6 +46,8 @@ function RailBuilder:handleExtension(segment)
         if self:isAligned() then
             self:queueBuild(RailSegment.rampFromPointer(self.oppositePointer))
             self.mainPointer = segment.forward
+            self.lengthSinceSupport = 2
+            self.lengthUntilSupport = 0
             return true
         else
             -- Cannot extend a ramp if the builder is not aligned.
@@ -46,7 +55,10 @@ function RailBuilder:handleExtension(segment)
         end
     else
         local success = self:extend(segment.turn)
-        if success then self.mainPointer = segment.forward end
+        if success then
+            self.mainPointer = segment.forward
+            self:checkExtras()
+        end
         return success
     end
 end
@@ -109,6 +121,9 @@ function RailBuilder:extend(turnDirection)
             end
 
             self.oppositePointer = railRewound.backward:createReverse()
+            if railRewound.addSignals then
+                self.lengthSinceSignal = SIGNAL_DISTANCE
+            end
         end
 
         for _, targetTurn in pairs(leftTurnConfig.extensions) do
@@ -117,8 +132,18 @@ function RailBuilder:extend(turnDirection)
 
         self.straightsBuilt = -leftTurnConfig.debt
     end
-
     return true
+end
+
+function RailBuilder:checkExtras()
+    local lastSegment = self.buildQueue[#self.buildQueue]
+    if not lastSegment then return end
+
+    -- Add signals if appropriate.
+    if self.lengthSinceSignal >= SIGNAL_DISTANCE and self:isAligned() then
+        lastSegment.addSignals = true
+        self.lengthSinceSignal = 0
+    end
 end
 
 function RailBuilder:finalize()
@@ -133,6 +158,26 @@ function RailBuilder:finalize()
 end
 
 function RailBuilder:queueBuild(segment)
+    local length = RAILDEFS.RAIL_TYPE_CONFIG[segment.type].length[segment.rotation]
+    self.lengthSinceSignal = self.lengthSinceSignal + length
+
+    if segment.forward.layer == defines.rail_layer.elevated then
+        if self.lengthUntilSupport > 0 or self.lengthSinceSupport + length > SUPPORT_DISTANCE then
+            if self.lengthUntilSupport + length > SUPPORT_DISTANCE then
+                segment.addSupport = true
+                self.lengthSinceSupport = length
+                self.lengthUntilSupport = 0
+            else
+                self.lengthUntilSupport = self.lengthUntilSupport + length
+            end
+        else
+            self.lengthSinceSupport = self.lengthSinceSupport + length
+        end
+    else
+        self.lengthSinceSupport = 0
+        self.lengthUntilSupport = 0
+    end
+
     table.insert(self.buildQueue, segment)
     self.oppositePointer = segment.forward
 end
@@ -149,7 +194,28 @@ end
 
 function RailBuilder:getRewind(preferredTurn)
     if #self.buildQueue > 0 then
-        return table.remove(self.buildQueue)
+        local segment = table.remove(self.buildQueue)
+
+        self.lengthSinceSignal = self.lengthSinceSignal - RAILDEFS.RAIL_TYPE_CONFIG[segment.type].length[segment.rotation]
+        if self.lengthSinceSignal < 0 then
+            self.lengthSinceSignal = SIGNAL_DISTANCE
+        end
+
+        if segment.forward.layer == defines.rail_layer.elevated then
+            if self.lengthUntilSupport > 0 then
+                self.lengthUntilSupport = self.lengthUntilSupport - RAILDEFS.RAIL_TYPE_CONFIG[segment.type].length[segment.rotation]
+            else
+                self.lengthSinceSupport = self.lengthSinceSupport - RAILDEFS.RAIL_TYPE_CONFIG[segment.type].length[segment.rotation]
+
+                -- Force the next support to be added
+                if self.lengthSinceSupport < 0 then
+                    self.lengthSinceSupport = SUPPORT_DISTANCE
+                    self.lengthUntilSupport = SUPPORT_DISTANCE
+                end
+            end
+        end
+
+        return segment
     else
         -- No build queue, so rewind using real rails if available
         local reversePointer = self.oppositePointer:createReverse()
@@ -190,31 +256,85 @@ function RailBuilder:build(player, plannerName)
     player.cursor_stack_temporary = true
 
     local blueprintEntities = {}
-    local min = {x = self.buildQueue[1].position.x, y = self.buildQueue[1].position.y}
-    local max = {x = self.buildQueue[1].position.x, y = self.buildQueue[1].position.y}
 
     for index, segment in pairs(self.buildQueue) do
         table.insert(blueprintEntities, {
             entity_number = index,
             name = RAILDEFS.PLANNER_PARTS[plannerName][segment.type],
+            type = segment.type,
             position = segment.position,
             direction = segment.rotation,
         })
-        -- Blueprints are always centered around the mid point.
-        -- Is there a better way to do this. cause come on.
-        if segment.position.x < min.x then min.x = segment.position.x end
-        if segment.position.y < min.y then min.y = segment.position.y end
-        if segment.position.x > max.x then max.x = segment.position.x end
-        if segment.position.y > max.y then max.y = segment.position.y end
-        -- Ramps are big. Everythign else is small. handle offset specially.
-        if segment.type == "rail-ramp" then
-            if segment.rotation == defines.direction.north or segment.rotation == defines.direction.south then
-                if (segment.position.y - 6) < min.y then min.y = (segment.position.y - 6) end
-                if (segment.position.y + 6) > max.y then max.y = (segment.position.y + 6) end
-            else
-                if (segment.position.x - 6) < min.x then min.x = (segment.position.x - 6) end
-                if (segment.position.x + 6) > max.x then max.x = (segment.position.x + 6) end
-            end
+
+        -- check for signals and supports.
+        if segment.addSignals then
+            -- Opposite Signal
+            local signalPosition = position.add(segment.forward.position, RAILDEFS.RAIL_SIGNAL_POSITIONS[segment.forward.direction].backward)
+
+            table.insert(blueprintEntities, {
+                entity_number = index,
+                name = "rail-signal",
+                type = "rail-signal",
+                position = signalPosition,
+                direction = segment.forward.direction,
+                rail_layer = segment.forward.layer == defines.rail_layer.elevated and "elevated" or nil,
+            })
+            index = index + 1
+
+            -- Forward Signal
+            signalPosition = position.subtract(segment.forward.position, RAILDEFS.SPACING[self.spacing].OPPOSITE_OFFSET[segment.forward.direction])
+            signalPosition = position.add(signalPosition, RAILDEFS.RAIL_SIGNAL_POSITIONS[segment.forward.direction].forward)
+
+            table.insert(blueprintEntities, {
+                entity_number = index,
+                name = "rail-signal",
+                type = "rail-signal",
+                position = signalPosition,
+                direction = TURN.around(segment.forward.direction),
+                rail_layer = segment.forward.layer == defines.rail_layer.elevated and "elevated" or nil,
+            })
+            index = index + 1
+        end
+
+        if segment.addSupport then
+            table.insert(blueprintEntities, {
+                entity_number = index,
+                name = "rail-support",
+                type = "rail-support",
+                position = segment.backward.position,
+                direction = segment.backward.direction % 8,
+            })
+            index = index + 1
+        end
+    end
+
+    -- Calculate the center of the blueprint.
+    local min = {x = blueprintEntities[1].position.x, y = blueprintEntities[1].position.y}
+    local max = {x = blueprintEntities[1].position.x, y = blueprintEntities[1].position.y}
+
+    for _, entity in pairs(blueprintEntities) do
+        if entity.type == "rail-signal" then
+            -- Rail signals take a spot, but its dependent on the part of the tile
+            -- they end in.
+            local minOffset = {
+                x = math.floor(entity.position.x / 2) * 2,
+                y = math.floor(entity.position.y / 2) * 2,
+            }
+            local maxOffset = position.add(minOffset, {x = 1, y = 1})
+
+            if minOffset.x < min.x then min.x = minOffset.x end
+            if minOffset.y < min.y then min.y = minOffset.y end
+            if maxOffset.x > max.x then max.x = maxOffset.x end
+            if maxOffset.y > max.y then max.y = maxOffset.y end
+        else
+            local offsets = RAILDEFS.BLUEPRINT_OFFSETS[entity.type][entity.direction]
+            local minOffset = position.add(entity.position, offsets.min)
+            local maxOffset = position.add(entity.position, offsets.max)
+
+            if minOffset.x < min.x then min.x = minOffset.x end
+            if minOffset.y < min.y then min.y = minOffset.y end
+            if maxOffset.x > max.x then max.x = maxOffset.x end
+            if maxOffset.y > max.y then max.y = maxOffset.y end
         end
     end
 

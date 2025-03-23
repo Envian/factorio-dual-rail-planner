@@ -13,11 +13,12 @@ find a path for the opposite rail, then the planner will be cancelled.
 
 ## Known Issues
 - Left turn algorithm is incomplete.
-- Does not work well with undo.
+- Elevated rails are not fully tested.
+    - When building elevated rails, start from an existing rail ghost.
 
 ## Roadmap
-- [ ] Automatic Rail Signals
 - [ ] Automatic Power Poles
 - [ ] Configuration GUI
 - [ ] Better left turn algorithm
 - [ ] More build options
+- [ ] 4 and 6 tile rail spacing

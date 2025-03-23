@@ -25,7 +25,7 @@ function RailSegment.fromPointer(pointer, turn)
     local targetDefine = RAILDEFS.RAIL_TURN_MAP[pointer.direction][targetDirection]
 
     segment.turn = turn
-    segment.type = RAILDEFS.LAYER_CATEGORY_TO_RAIL_TYPE[pointer.layer][targetDefine.category]
+    segment.type = targetDefine.config.type[pointer.layer]
     segment.rotation = targetDefine.rotation
     segment.position = position.add(pointer.position, targetDefine.offset)
     segment.surface = pointer.surface
@@ -37,6 +37,9 @@ function RailSegment.fromPointer(pointer, turn)
         surface = pointer.surface,
     })
     segment.backward = pointer:createReverse()
+
+    segment.addSignals = false
+    segment.addSupport = false
 
     -- use getEntity
     -- segment.__cacheState = CACHE_STATE.EMPTY
@@ -70,6 +73,9 @@ function RailSegment.rampFromPointer(pointer)
     })
     segment.backward = pointer:createReverse()
 
+    segment.addSignals = false
+    segment.addSupport = false
+
     -- use getEntity
     -- segment.__cacheState = CACHE_STATE.EMPTY
     -- segment.__rail = nil
@@ -84,7 +90,7 @@ function RailSegment.fromEntity(rail)
     local segment = {}
 
     local type = rail.type == "entity-ghost" and rail.ghost_type or rail.type
-    local config = RAILDEFS.RAIL_PATH_CONFIG[RAILDEFS.RAIL_TYPE_TO_CATEGORY[type]]
+    local config = RAILDEFS.RAIL_TYPE_CONFIG[type]
     local forward, backward = unpack(config.paths[rail.direction])
 
     segment.turn = ((forward - backward + 9) % 16) - 1
@@ -105,6 +111,9 @@ function RailSegment.fromEntity(rail)
         layer = type == "rail-ramp" and defines.rail_layer.ground or RAILDEFS.TYPE_TO_LAYER[segment.type],
         surface = rail.surface,
     })
+
+    segment.addSignals = false
+    segment.addSupport = false
 
     -- use getEntity
     -- segment.__cacheState = CACHE_STATE.CACHED

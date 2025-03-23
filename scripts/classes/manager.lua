@@ -107,8 +107,8 @@ function Manager:entityBuilt(event)
     table.insert(self.builtEntities, event.entity)
 
     if event.entity.type == "rail-support"
-    or event.entity.ghost_type == "rail-support"
-    or event.entity.name == "tile-ghost"
+    or event.entity.type == "entity-ghost" and event.entity.ghost_type == "rail-support"
+    or event.entity.type == "tile-ghost"
     then
         -- We only track these things so we can abort them
         return
