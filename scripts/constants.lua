@@ -1,6 +1,5 @@
 return {
     SHORTCUT_PREFIX = "drp-railshortcut_",
-
-    ALERT_SPRITE = "utility.no_path_icon",
-    ALERT_DURATION = 10 * 60 * 60, -- 10 minutes
+    DATA_REGISTERED_NAME_PREFIX = "drp-registered-planner_",
+    DATA_REGISTERED_PLANNER_TYPE = "drp.RegisteredRailPlanner",
 }

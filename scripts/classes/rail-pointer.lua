@@ -1,55 +1,88 @@
-local validate = require("scripts.helpers.validate")
-local TURN = require("scripts.helpers.turn")
+local OPPOSITE_OFFSETS = require("scripts.rail-consts.raw.opposite-offsets")
 
+local Turn = require("scripts.classes.turn")
+
+--- @class (exact) RailPointer
+--- @field position Vector2d
+--- @field direction TrueDirection
+--- @field layer defines.rail_layer
+--- @field surface LuaSurface
 local RailPointer = {}
+
+---@diagnostic disable-next-line: inject-field
 RailPointer.__index = RailPointer
 
--- { position, direction, layer, surface }
-function RailPointer.new(params)
-    assert(validate.position(params.position))
-    assert(validate.direction(params.direction))
-    assert(params.layer == defines.rail_layer.ground or params.layer == defines.rail_layer.elevated)
-    assert(params.surface.object_name == "LuaSurface")
-
-    local pointer = {}
-
-    pointer.position = params.position
-    pointer.direction = params.direction
-    pointer.layer = params.layer
-    pointer.surface = params.surface
-
-    setmetatable(pointer, RailPointer)
-    return pointer
+--- Creates a new pointer.
+--- @param params RailPointer
+--- @return RailPointer
+function RailPointer:new(params)
+    return setmetatable(params, RailPointer)
 end
 
+--- Returns the rail pointer in the opposite direction.
+--- @return RailPointer
 function RailPointer:createReverse()
-    return RailPointer.new({
+    return RailPointer:new({
         position = self.position,
-        direction = TURN.around(self.direction),
+        direction = Turn.around(self.direction),
         layer = self.layer,
         surface = self.surface
     })
 end
 
+--- Creates a pointer for parrallel tracks.
+--- @param trackOffset number
+--- @return RailPointer
+function RailPointer:createParrallel(trackOffset)
+    local evenOffsets = math.floor(math.abs(trackOffset) / 2) * 2
+    local oddOffsets = trackOffset % 2
+
+    local offset =
+        OPPOSITE_OFFSETS.even[self.direction] * evenOffsets +
+        OPPOSITE_OFFSETS.odd[self.direction] * oddOffsets
+
+    if trackOffset < 0 then
+        offset:scale(-1)
+    end
+
+    return RailPointer:new({
+        position = self.position + offset,
+        direction = self.direction,
+        layer = self.layer,
+        surface = self.surface
+    })
+end
+
+--- Checks if these pointers are at the same position,
+--- but facing opposite directions.
+--- @param other RailPointer
+--- @return boolean
 function RailPointer:isOpposite(other)
     return self.surface == other.surface
        and self.position.x == other.position.x
        and self.position.y == other.position.y
        and self.layer == other.layer
-       and self.direction == TURN.around(other.direction)
+       and self.direction == Turn.around(other.direction)
 end
 
--- Read Only
-function RailPointer:__newIndex(key, value)
-    error("Rail Pointers are read only.")
+--- Converts this table to a key for hash lookup.
+--- @return string
+function RailPointer:toKey()
+    return self.surface.index .. "|"
+        .. self.position.x .. "|"
+        .. self.position.y .. "|"
+        .. self.layer .. "|"
+        .. self.direction
 end
 
-function RailPointer:__eq(other)
-    return self.surface == other.surface
-       and self.position.x == other.position.x
-       and self.position.y == other.position.y
-       and self.layer == other.layer
-       and self.direction == other.direction
+--- Converts this table to a key for hash lookup.
+--- @return string
+function RailPointer:toKeyReverse()
+    return self.surface.index .. "|"
+        .. self.position.x .. "|"
+        .. self.position.y .. "|"
+        .. self.layer .. "|"
+        .. Turn.around(self.direction)
 end
 
 script.register_metatable("RailPointer", RailPointer)

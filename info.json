@@ -1,10 +1,22 @@
 {
     "name": "dual-rail-planner",
-    "version": "0.0.1",
+    "version": "0.2.0",
     "factorio_version": "2.0",
     "title": "Dual Rail Planner",
     "author": "Envian",
-    "homepage": "",
-    "description": "Gives a rail planner which can place two directional rails.",
-    "dependencies": ["base >= 2.0", "? elevated-rails >= 2.0"]
+    "homepage": "https://github.com/Envian/factorio-dual-rail-planner",
+    "description": "Adds a rail planner which places two parrallel paths.",
+    "dependencies": ["base >= 2.0", "? elevated-rails >= 2.0"],
+    "package": {
+        "readme": "README.md",
+        "faq": "FAQ.md",
+        "gallery": ["gallery/*"],
+        "ignore": [
+            "README.md",
+            "TODO.md",
+            "FAQ.md",
+            "notes/*",
+            "gallery/*"
+        ]
+    }
 }

@@ -1,0 +1,60 @@
+local Vector2d = require("scripts.classes.vector")
+
+--- Position of each edge, relative to the entity's center and direction of travel.
+--- @type { [RailCategory]: { [TrueDirection]: Vector2d } }
+return {
+    ["straight"] = {
+        [defines.direction.north] = Vector2d:new( 0,-1),
+        [defines.direction.east]  = Vector2d:new( 1, 0),
+        [defines.direction.south] = Vector2d:new( 0, 1),
+        [defines.direction.west]  = Vector2d:new(-1, 0),
+        [defines.direction.northeast] = Vector2d:new( 1,-1),
+        [defines.direction.southeast] = Vector2d:new( 1, 1),
+        [defines.direction.southwest] = Vector2d:new(-1, 1),
+        [defines.direction.northwest] = Vector2d:new(-1,-1),
+    },
+    ["half-diagonal"] = {
+        [defines.direction.northnortheast] = Vector2d:new( 1,-2),
+        [defines.direction.northnorthwest] = Vector2d:new(-1,-2),
+        [defines.direction.eastnortheast]  = Vector2d:new( 2,-1),
+        [defines.direction.eastsoutheast]  = Vector2d:new( 2, 1),
+        [defines.direction.southsoutheast] = Vector2d:new( 1, 2),
+        [defines.direction.southsouthwest] = Vector2d:new(-1, 2),
+        [defines.direction.westsouthwest]  = Vector2d:new(-2, 1),
+        [defines.direction.westnorthwest]  = Vector2d:new(-2,-1),
+    },
+    ["curved-a"] = {
+        [defines.direction.north] = Vector2d:new( 0,-2),
+        [defines.direction.east]  = Vector2d:new( 2, 0),
+        [defines.direction.south] = Vector2d:new( 0, 2),
+        [defines.direction.west]  = Vector2d:new(-2, 0),
+        [defines.direction.northnortheast] = Vector2d:new( 1,-3),
+        [defines.direction.northnorthwest] = Vector2d:new(-1,-3),
+        [defines.direction.eastnortheast]  = Vector2d:new( 3,-1),
+        [defines.direction.eastsoutheast]  = Vector2d:new( 3, 1),
+        [defines.direction.southsoutheast] = Vector2d:new( 1, 3),
+        [defines.direction.southsouthwest] = Vector2d:new(-1, 3),
+        [defines.direction.westsouthwest]  = Vector2d:new(-3, 1),
+        [defines.direction.westnorthwest]  = Vector2d:new(-3,-1),
+    },
+    ["curved-b"] = {
+        [defines.direction.northeast] = Vector2d:new( 2,-2),
+        [defines.direction.southeast] = Vector2d:new( 2, 2),
+        [defines.direction.southwest] = Vector2d:new(-2, 2),
+        [defines.direction.northwest] = Vector2d:new(-2,-2),
+        [defines.direction.northnortheast] = Vector2d:new( 1,-2),
+        [defines.direction.northnorthwest] = Vector2d:new(-1,-2),
+        [defines.direction.eastnortheast]  = Vector2d:new( 2,-1),
+        [defines.direction.eastsoutheast]  = Vector2d:new( 2, 1),
+        [defines.direction.southsoutheast] = Vector2d:new( 1, 2),
+        [defines.direction.southsouthwest] = Vector2d:new(-1, 2),
+        [defines.direction.westsouthwest]  = Vector2d:new(-2, 1),
+        [defines.direction.westnorthwest]  = Vector2d:new(-2,-1),
+    },
+    ["ramp"] = {
+        [defines.direction.north] = Vector2d:new( 0,-8),
+        [defines.direction.east] =  Vector2d:new( 8, 0),
+        [defines.direction.south] = Vector2d:new( 0, 8),
+        [defines.direction.west] =  Vector2d:new(-8, 0),
+    },
+}

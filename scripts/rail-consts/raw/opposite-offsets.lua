@@ -1,0 +1,43 @@
+local Vector2d = require("scripts.classes.vector")
+
+-- To keep the gap looking nice, there are two gaps. One for some number of even distances.
+-- Another for an odd distance.
+
+return {
+    odd = {
+        [defines.direction.north] = Vector2d:new(-2, 0),
+        [defines.direction.east]  = Vector2d:new( 0,-2),
+        [defines.direction.south] = Vector2d:new( 2, 0),
+        [defines.direction.west]  = Vector2d:new( 0, 2),
+        [defines.direction.northeast] = Vector2d:new(-2, 0),
+        [defines.direction.southeast] = Vector2d:new( 0,-2),
+        [defines.direction.southwest] = Vector2d:new( 2, 0),
+        [defines.direction.northwest] = Vector2d:new( 0, 2),
+        [defines.direction.northnortheast] = Vector2d:new(-2, 0),
+        [defines.direction.eastnortheast]  = Vector2d:new( 0,-2),
+        [defines.direction.eastsoutheast]  = Vector2d:new( 0,-2),
+        [defines.direction.southsoutheast] = Vector2d:new( 2, 0),
+        [defines.direction.southsouthwest] = Vector2d:new( 2, 0),
+        [defines.direction.westsouthwest]  = Vector2d:new( 0, 2),
+        [defines.direction.westnorthwest]  = Vector2d:new( 0, 2),
+        [defines.direction.northnorthwest] = Vector2d:new(-2, 0),
+    },
+    even = {
+        [defines.direction.north] = Vector2d:new(-2, 0),
+        [defines.direction.east]  = Vector2d:new( 0,-2),
+        [defines.direction.south] = Vector2d:new( 2, 0),
+        [defines.direction.west]  = Vector2d:new( 0, 2),
+        [defines.direction.northeast] = Vector2d:new(-1,-2),
+        [defines.direction.southeast] = Vector2d:new( 2,-1),
+        [defines.direction.southwest] = Vector2d:new( 1, 2),
+        [defines.direction.northwest] = Vector2d:new(-2, 1),
+        [defines.direction.northnortheast] = Vector2d:new(-2,-1),
+        [defines.direction.eastnortheast]  = Vector2d:new(-1,-2),
+        [defines.direction.eastsoutheast]  = Vector2d:new( 1,-2),
+        [defines.direction.southsoutheast] = Vector2d:new( 2,-1),
+        [defines.direction.southsouthwest] = Vector2d:new( 2, 1),
+        [defines.direction.westsouthwest]  = Vector2d:new( 1, 2),
+        [defines.direction.westnorthwest]  = Vector2d:new(-1, 2),
+        [defines.direction.northnorthwest] = Vector2d:new(-2, 1),
+    }
+}

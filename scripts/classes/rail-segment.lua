@@ -1,137 +1,159 @@
-local RAILDEFS = require("scripts.rail-config.common")
+local TYPE_TO_LAYER = require("scripts.rail-consts.raw.layer")
+local TYPE_TO_CATEGORY = require("scripts.rail-consts.raw.type-to-category")
+local CATEGORY_TO_TYPE = require("scripts.rail-consts.raw.category-to-type")
+local EDGE_OFFSET = require("scripts.rail-consts.raw.edge-offset")
+local METADATA_BY_CATEGORY = require("scripts.rail-consts.by-category")
+local METADATA_BY_TURN = require("scripts.rail-consts.by-turn")
 
-local TURN = require("scripts.helpers.turn")
-local validate = require("scripts.helpers.validate")
-local position = require("scripts.helpers.position")
-
+local Helper = require("scripts.helpers")
+local Turn = require("scripts.classes.turn")
 local RailPointer = require("scripts.classes.rail-pointer")
 
-local CACHE_STATE = {
-    EMPTY = 0,
-    NIL = 1,
-    CACHED = 2,
-}
-
+--- @class (exact) RailSegment
+--- @field turn Turn
+--- @field category RailCategory
+--- @field type RailEntityType
+--- @field position Vector2d
+--- @field rotation EntityDirection
+--- @field surface LuaSurface
+--- @field forward RailPointer
+--- @field backward RailPointer
+--- @field eventIndex number? The event number which created this segment.
+--- @field entity LuaEntity? The rail entity. Use getEntity()
+--- @field tiles LuaEntity[]? Tiles added to support this entity.
 local RailSegment = {}
+--- @diagnostic disable-next-line: inject-field
 RailSegment.__index = RailSegment
 
-function RailSegment.fromPointer(pointer, turn)
-    assert(getmetatable(pointer) == RailPointer)
-    assert(validate.turn(turn))
+------------------
+-- Constructors --
+------------------
 
+--- Creates a new RailSegment from a pointer and turn.
+--- @param pointer RailPointer
+--- @param turn Turn
+--- @return RailSegment
+--- @diagnostic disable-next-line: inject-field
+function RailSegment.fromPointer(pointer, turn)
     local segment = {}
 
-    local targetDirection = TURN(pointer.direction, turn)
-    local targetDefine = RAILDEFS.RAIL_TURN_MAP[pointer.direction][targetDirection]
+    local forward = Turn(pointer.direction, turn)
+    local backward = Turn.around(pointer.direction)
+    local turnInfo = METADATA_BY_TURN[pointer.direction][turn]
 
     segment.turn = turn
-    segment.type = targetDefine.config.type[pointer.layer]
-    segment.rotation = targetDefine.rotation
-    segment.position = position.add(pointer.position, targetDefine.offset)
+    segment.category = turnInfo.category
+    segment.type = CATEGORY_TO_TYPE[turnInfo.category][pointer.layer]
+    segment.rotation = turnInfo.rotation
+    segment.position = pointer.position - EDGE_OFFSET[turnInfo.category][backward]
     segment.surface = pointer.surface
 
-    segment.forward = RailPointer.new({
-        position = position.add(segment.position, targetDefine.config.edges[targetDirection]),
-        direction = targetDirection,
+    segment.forward = RailPointer:new({
+        position = segment.position + EDGE_OFFSET[turnInfo.category][forward],
+        direction = forward,
         layer = pointer.layer,
         surface = pointer.surface,
     })
     segment.backward = pointer:createReverse()
 
-    segment.addSignals = false
-    segment.addSupport = false
-
-    -- use getEntity
-    -- segment.__cacheState = CACHE_STATE.EMPTY
-    -- segment.__rail = nil
+    segment.index = -1
+    segment.support = nil
+    segment.tiles = nil
 
     setmetatable(segment, RailSegment)
     return segment
 end
 
+--- Creates a new Ramp RailSegment from a starting pointer.
+--- Nil if a ramp cannot be created.
+--- @param pointer RailPointer
+--- @return RailSegment?
+--- @diagnostic disable-next-line: inject-field
 function RailSegment.rampFromPointer(pointer)
-    assert(getmetatable(pointer) == RailPointer)
-
     -- Ramps can only be made on cardinals.
     if pointer.direction % 4 ~= 0 then return nil end
 
     local segment = {}
-    local config = RAILDEFS.RAIL_PATH_CONFIG["ramp"]
+    local backward = pointer:createReverse()
 
-    segment.turn = TURN.STRAIGHT
+    segment.turn = Turn.STRAIGHT
+    segment.category = "ramp"
     segment.type = "rail-ramp"
-    segment.rotation = pointer.layer == defines.rail_layer.ground and pointer.direction or TURN.around(pointer.direction)
-    -- This depends on ramps being symmetrical.
-    segment.position = position.add(pointer.position, config.edges[pointer.direction])
+    segment.rotation = pointer.layer == defines.rail_layer.ground and pointer.direction or backward.direction
+    segment.position = pointer.position - EDGE_OFFSET["ramp"][backward.direction]
     segment.surface = pointer.surface
 
-    segment.forward = RailPointer.new({
-        position = position.add(segment.position, config.edges[pointer.direction]),
+    segment.forward = RailPointer:new({
+        position = segment.position + EDGE_OFFSET["ramp"][pointer.direction],
         direction = pointer.direction,
         layer = pointer.layer == defines.rail_layer.ground and defines.rail_layer.elevated or defines.rail_layer.ground,
         surface = pointer.surface,
     })
-    segment.backward = pointer:createReverse()
+    segment.backward = backward
 
-    segment.addSignals = false
-    segment.addSupport = false
-
-    -- use getEntity
-    -- segment.__cacheState = CACHE_STATE.EMPTY
-    -- segment.__rail = nil
+    segment.support = nil
+    segment.tiles = nil
 
     setmetatable(segment, RailSegment)
     return segment
 end
 
+--- Creates a new RailSegment from an existing entity
+--- @param rail LuaEntity
+--- @return RailSegment
+--- @diagnostic disable-next-line: inject-field
 function RailSegment.fromEntity(rail)
-    assert(validate.railEntity(rail))
-
     local segment = {}
 
-    local type = rail.type == "entity-ghost" and rail.ghost_type or rail.type
-    local config = RAILDEFS.RAIL_TYPE_CONFIG[type]
-    local forward, backward = unpack(config.paths[rail.direction])
+    local type = Helper.getEntityType(rail)
+    local category = TYPE_TO_CATEGORY[type]
+    local forward, backward = table.unpack(METADATA_BY_CATEGORY[category][rail.direction].edges)
 
-    segment.turn = ((forward - backward + 9) % 16) - 1
+    segment.turn = Helper.getTurnFromEntityDirections(forward, backward)
     segment.type = type
+    segment.category = category
     segment.rotation = rail.direction
     segment.position = rail.position
     segment.surface = rail.surface
 
-    segment.forward = RailPointer.new({
-        position = position.add(segment.position, config.edges[forward]),
+    segment.forward = RailPointer:new({
+        position = EDGE_OFFSET[category][forward] + segment.position,
         direction = forward,
-        layer = RAILDEFS.TYPE_TO_LAYER[segment.type],
+        layer = TYPE_TO_LAYER[segment.type],
         surface = rail.surface,
     })
-    segment.backward = RailPointer.new({
-        position = position.add(segment.position, config.edges[backward]),
+    segment.backward = RailPointer:new({
+        position = EDGE_OFFSET[category][backward] + segment.position,
         direction = backward,
-        layer = type == "rail-ramp" and defines.rail_layer.ground or RAILDEFS.TYPE_TO_LAYER[segment.type],
+        layer = type == "rail-ramp" and defines.rail_layer.ground or TYPE_TO_LAYER[segment.type],
         surface = rail.surface,
     })
 
-    segment.addSignals = false
-    segment.addSupport = false
-
-    -- use getEntity
-    -- segment.__cacheState = CACHE_STATE.CACHED
-    -- segment.__rail = rail
+    segment.entity = rail
+    segment.support = nil
+    segment.tiles = nil
 
     setmetatable(segment, RailSegment)
     return segment
 end
 
+--- Gets all possible rail segments from a given pointer.
+--- @param pointer RailPointer
+--- @return [RailSegment, RailSegment, RailSegment, RailSegment?]
+--- @diagnostic disable-next-line: inject-field
 function RailSegment.getAllFromPointer(pointer)
     return {
-        RailSegment.fromPointer(pointer, TURN.STRAIGHT),
-        RailSegment.fromPointer(pointer, TURN.RIGHT),
-        RailSegment.fromPointer(pointer, TURN.LEFT),
+        RailSegment.fromPointer(pointer, Turn.STRAIGHT),
+        RailSegment.fromPointer(pointer, Turn.RIGHT),
+        RailSegment.fromPointer(pointer, Turn.LEFT),
         RailSegment.rampFromPointer(pointer),
     }
 end
 
+--- Gets all existing entity RailSegments attached to a given pointer.
+--- @param pointer RailPointer
+--- @return RailSegment[]
+--- @diagnostic disable-next-line: inject-field
 function RailSegment.getAllExistingFromPointer(pointer)
     local result = {}
     for _, extension in pairs(RailSegment.getAllFromPointer(pointer)) do
@@ -142,77 +164,80 @@ function RailSegment.getAllExistingFromPointer(pointer)
     return result
 end
 
+---------------
+-- Alignment --
+---------------
+
+--- Modifies the current RailSegment, reversing it.
 function RailSegment:reverse()
     self.turn = -self.turn
     self.forward, self.backward = self.backward, self.forward
 end
 
+--- Modifies the current RailSegment, reversing it so it faces away from the target.
+--- @param target RailSegment | RailPointer
+--- @return boolean
 function RailSegment:alignAwayFrom(target)
     if getmetatable(target) == RailSegment then target = target.forward end
 
-    -- Reverses self so this backward -> target forward
+    --- @diagnostic disable-next-line: param-type-mismatch
     if self.forward:isOpposite(target) then
+        -- Reverses self so this backward -> target forward
         self:reverse()
+        return true
     end
+
+    return target:isOpposite(self.backward)
 end
 
+--- Aligns two RailSegments, such that this -> forward is touching target -> backward
+--- @param target RailSegment
+--- @return boolean
 function RailSegment:alignSegments(target)
     -- Reverses both so this.forward -> target.backward
     if self.backward:isOpposite(target.backward) then
         self:reverse()
+        return true
     elseif self.backward:isOpposite(target.forward) then
         self:reverse()
         target:reverse()
+        return true
     elseif self.forward:isOpposite(target.forward) then
         target:reverse()
+        return true
     end
+    return self.forward:isOpposite(target.backward)
 end
 
+--- Checks if this RailSegment leads into the target.
+--- @param target RailSegment
+--- @return boolean
 function RailSegment:connectedTo(target)
     return self.forward:isOpposite(target.backward)
 end
 
-function RailSegment:getEntity()
-    -- Is this really necessary? It can cause issues if our cache is ever invalid.
-    -- if (self.__rail and not self.__rail.valid)
-    -- or (self.__cacheState == CACHE_STATE.EMPTY)
-    -- or (self.__cacheState == CACHE_STATE.CACHED and not self.__rail)
-    -- then
-    --     self.__rail = self.surface.find_entities_filtered({
-    --         type = self.type,
-    --         position = self.position,
-    --         direction = self.rotation,
-    --         limit = 1
-    --     })[1] or self.surface.find_entities_filtered({
-    --         type = "entity-ghost",
-    --         ghost_type = self.type,
-    --         position = self.position,
-    --         direction = self.rotation,
-    --         limit = 1
-    --     })[1]
-    --     self.__cacheState = self.__rail == nil and CACHE_STATE.NIL or CACHE_STATE.CACHED
-    -- end
-    -- return self.__rail
-    local found = self.surface.find_entities_filtered({
-        type = self.type,
-        position = self.position,
-        direction = self.rotation,
-        limit = 1
-    })[1] or self.surface.find_entities_filtered({
-        type = "entity-ghost",
-        ghost_type = self.type,
-        position = self.position,
-        direction = self.rotation,
-        limit = 1
-    })[1]
+---------------------
+-- Entity Checking --
+---------------------
 
-    -- find can find entities which collide with a spot, but aren't centered there.
-    -- we only want the centered entities.
-    if found and found.position.x == self.position.x and found.position.y == self.position.y then
-        return found
+--- Gets the physical LuaEntity at this location, if it exists
+--- @return LuaEntity?
+function RailSegment:getEntity()
+    if not self.entity or not self.entity.valid then
+        self.entity = Helper.getEntityAt({
+            type = self.type,
+            surface = self.surface,
+            position = self.position,
+            direction = self.rotation
+        })
     end
-    return nil
+
+    return self.entity
 end
+
+--------------------
+-- Helper Methods --
+--------------------
 
 function RailSegment:__eq(other)
     return self.type == other.type
@@ -220,6 +245,33 @@ function RailSegment:__eq(other)
        and self.position.x == other.position.x
        and self.position.y == other.position.y
        and self.surface == other.surface
+end
+
+local drawFunctions = require("scripts.classes.rail-segment_draw")
+
+--- Renders this RailSegment and its event number on the screen. Debug only.
+--- @param player LuaPlayer
+--- @param pathIndex number
+function RailSegment:draw(player, pathIndex)
+    if DEBUG_MODE then
+        drawFunctions.draw(self, player, pathIndex)
+    end
+end
+
+--- Renders this RailSegment's path number. Debug only.
+--- @param player LuaPlayer
+function RailSegment:drawEventText(player)
+    if DEBUG_MODE then
+        drawFunctions.drawEventText(self, player)
+    end
+end
+
+--- Renders this RailSegment as a rewind.
+--- @param player LuaPlayer
+function RailSegment:drawRewind(player)
+    if DEBUG_MODE then
+        drawFunctions.drawRewind(self, player)
+    end
 end
 
 script.register_metatable("RailSegment", RailSegment)
