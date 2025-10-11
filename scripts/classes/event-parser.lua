@@ -5,8 +5,6 @@ local Helpers = require("scripts.helpers")
 local RailPath = require("scripts.classes.rail-path")
 local RailSegment = require("scripts.classes.rail-segment")
 
-local tickHandler = require("scripts.ontick")
-
 -- So, here's how this works at a high level. We cannot determine the build order
 -- with a single event, so we need to collect them to determine planner direction.
 -- Ground and elevated rails have different rules for placement.
@@ -42,7 +40,7 @@ local tickHandler = require("scripts.ontick")
 
 --- @class (exact) EventParser
 --- @field planner string?
---- @field private plannerItem string?
+--- @field hasEvents boolean
 --- @field player LuaPlayer
 --- @field private path RailPath?
 --- @field private lowConfidencePath RailPath?
@@ -128,6 +126,7 @@ function EventParser.new(player)
     setmetatable(parser, EventParser)
 
     parser.planner = nil
+    parser.hasEvents = false
     parser.player = player
     parser.eventIndex = 0
 
@@ -228,7 +227,7 @@ function EventParser:entityBuilt(entity)
     end
 
     -- This planner now has something to check.
-    tickHandler.register()
+    self.hasEvents = true
 end
 
 --- Handles ground rail events.
@@ -444,14 +443,19 @@ function EventParser:getPath()
 
     local path = self.path
     if path then
-        -- We found a path so clear the ground cache.
         self.groundCache = nil
     end
+
+    -- Regardless of if we found a path or not, mark this as not ready so
+    -- recurring ticks don't try to get the entities.
+    self.hasEvents = false
 
     self.path = nil
     self.tiles = {}
     return path
 end
+
+require("scripts.profiling").register(EventParser, "EventParser")
 
 script.register_metatable("EventParser", EventParser)
 return EventParser

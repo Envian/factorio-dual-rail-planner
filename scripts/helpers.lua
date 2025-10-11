@@ -3,6 +3,7 @@
 --
 
 DEBUG_MODE = settings.startup["debug-mode"].value
+DRAW_MODE = DEBUG_MODE
 
 --- Reverses a table in memory
 --- @param target any[]

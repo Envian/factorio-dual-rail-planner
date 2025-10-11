@@ -78,7 +78,7 @@ function RailBuilder:buildPath()
         })
     end
 
-    if DEBUG_MODE then self:draw() end
+    if DRAW_MODE then self:draw() end
 
     -- Update history
     storage.history[self.player.index].pointer = self.mainPath.forward
@@ -131,6 +131,8 @@ function RailBuilder:draw()
         segment:draw(self.player, index)
     end
 end
+
+require("scripts.profiling").register(RailBuilder, "RailBuilder")
 
 script.register_metatable("RailBuilder", RailBuilder)
 return RailBuilder

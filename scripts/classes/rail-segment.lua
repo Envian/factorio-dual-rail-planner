@@ -253,7 +253,7 @@ local drawFunctions = require("scripts.classes.rail-segment_draw")
 --- @param player LuaPlayer
 --- @param pathIndex number
 function RailSegment:draw(player, pathIndex)
-    if DEBUG_MODE then
+    if DRAW_MODE then
         drawFunctions.draw(self, player, pathIndex)
     end
 end
@@ -261,7 +261,7 @@ end
 --- Renders this RailSegment's path number. Debug only.
 --- @param player LuaPlayer
 function RailSegment:drawEventText(player)
-    if DEBUG_MODE then
+    if DRAW_MODE then
         drawFunctions.drawEventText(self, player)
     end
 end
@@ -269,7 +269,7 @@ end
 --- Renders this RailSegment as a rewind.
 --- @param player LuaPlayer
 function RailSegment:drawRewind(player)
-    if DEBUG_MODE then
+    if DRAW_MODE then
         drawFunctions.drawRewind(self, player)
     end
 end

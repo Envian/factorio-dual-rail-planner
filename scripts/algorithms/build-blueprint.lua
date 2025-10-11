@@ -56,7 +56,7 @@ return function(entities, player, plannerInfo)
     player.clear_cursor()
     player.cursor_ghost = currentGhost
 
-    if DEBUG_MODE then
+    if DRAW_MODE then
         rendering.draw_circle({
             color = { 0, 0, 0, 1 },
             target = {

@@ -3,11 +3,12 @@ if script.active_mods["gvv"] then require("__gvv__.gvv")() end
 -- Helpers must be the first import.
 require("scripts.helpers")
 
-
 require("scripts.commands")
 local const = require("scripts.constants")
 
 local EventParser = require("scripts.classes.event-parser")
+local RailBuilder = require("scripts.classes.rail-builder")
+local reportProfiling = require("scripts.profiling").report
 
 DISABLE_EVENTS = false
 
@@ -85,3 +86,18 @@ end, entityFilter)
 -- script.on_event({defines.events.on_redo_applied, defines.events.on_undo_applied}, function(event)
 --     storage.parsers[event.player_index]:undoRedoApplied(event)
 -- end)
+
+script.on_event(defines.events.on_tick, function(event)
+    for _, parser in pairs(storage.parsers) do
+        if parser.hasEvents then
+            local path = parser:getPath()
+            if path then
+                local builder = RailBuilder.new(parser.player, parser.planner, path)
+                builder:buildPath()
+                builder:addExtras()
+                builder:finish()
+                reportProfiling()
+            end
+        end
+    end
+end)

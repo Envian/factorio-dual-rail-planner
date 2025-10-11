@@ -36,7 +36,7 @@ end)
 commands.add_command("drpreset", "Resets Storage to default settings.", function(event)
     storage.parsers = {}
     storage.history = {}
-    storage.onticks = { registered = false }
+    -- storage.onticks = { registered = false }
 
     script.on_event(defines.events.on_tick, nil)
 
@@ -77,4 +77,8 @@ commands.add_command("drpmark", "Marks a place in the current world.", function(
             surface = player.surface,
         })
     end
+end)
+
+commands.add_command("drpdraw", "Toggles DRP Rendering mode", function(event)
+    DRAW_MODE = not DRAW_MODE
 end)
