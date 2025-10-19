@@ -1,4 +1,3 @@
--- Currently testing fmtk profiler mode more.
 if not DEBUG_MODE then
     return {
         register = function() end,

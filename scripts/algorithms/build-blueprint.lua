@@ -1,5 +1,3 @@
-local PLANNER_INFO = require("scripts.rail-consts.planner-info")
-
 --- Builds a blueprint
 --- @param entities BlueprintEntity[]
 --- @param player LuaPlayer

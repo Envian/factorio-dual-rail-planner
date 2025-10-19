@@ -22,6 +22,8 @@ function registerPlanner(planner, signal)
         end
     end
 
+    -- TODO: Show shortcut only when rail planner entity (Rail) has been researched.
+
     data:extend({{
         type = "shortcut",
         name = const.SHORTCUT_PREFIX .. planner.name,

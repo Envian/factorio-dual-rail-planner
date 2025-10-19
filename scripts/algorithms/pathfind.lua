@@ -38,8 +38,11 @@ return function(path, goal, player)
 
         if turns == 0 then
             if not closeToZero(perpendicularDistance) then
-                drpDebug(">>>>> S Bend <<<<<<")
-                error("This should never be called, maybe.")
+                drpDebug({ "debug.s-bend-error" })
+                if not DEBUG_MODE then
+                    player.print({ "debug.s-bend-error" })
+                end
+                return -5
             else
                 -- always add ramps first if necessary.
                 if path.forward.layer ~= goal.layer then
