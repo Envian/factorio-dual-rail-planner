@@ -64,9 +64,9 @@ local REWIND = {
 --- @param offset Vector2d
 --- @return Vector2d
 local function rotateThenAdd(point, radians, offset)
-    return Vector2d.__add(offset, {
-        x = point.x * math.cos(radians) - point.y * math.sin(radians),
-        y = point.x * math.sin(radians) + point.y * math.cos(radians),
+    return Vector2d:new({
+        x = point.x * math.cos(radians) - point.y * math.sin(radians) + offset.x,
+        y = point.x * math.sin(radians) + point.y * math.cos(radians) + offset.y,
     })
 end
 
@@ -120,7 +120,7 @@ local function draw(self, player, pathIndex)
         backward = backward + ELEVATED_OFFSET
     end
 
-    local center = { x = (forward.x + backward.x) / 2, y = (forward.y + backward.y) / 2 }
+    local center = (forward + backward) / 2
     local directionVector = forward - backward
     local radians = math.atan2(directionVector.y, directionVector.x)
 
@@ -282,15 +282,11 @@ local function drawEventText(self, player)
     local forward = self.forward.position
     local backward = self.backward.position
 
-    if self.type == "elevated-straight-rail" or
-       self.type == "elevated-half-diagonal-rail" or
-       self.type == "elevated-curved-rail-a" or
-       self.type == "elevated-curved-rail-b"
-    then
+    if self.forward.layer == defines.rail_layer.elevated then
+        forward = forward + ELEVATED_OFFSET
+    end
+    if self.backward.layer == defines.rail_layer.elevated then
         backward = backward + ELEVATED_OFFSET
-        forward = forward + ELEVATED_OFFSET
-    elseif self.type == "rail-ramp" then
-        forward = forward + ELEVATED_OFFSET
     end
 
     local center = { x = (forward.x + backward.x) / 2, y = (forward.y + backward.y) / 2 }

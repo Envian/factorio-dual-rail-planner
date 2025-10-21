@@ -82,7 +82,7 @@ return function(path, goal, player)
 
                 if rewind then
                     if rewind.type == "rail-ramp" then
-                        drpDebug({ "debug.path-invalid-ramp" })
+                        drpError(player, { "debug.path-invalid-ramp" })
                         return -4
                     end
                     rewind:drawRewind(player)
@@ -95,7 +95,7 @@ return function(path, goal, player)
                     if #rewindables == 1 and #branches == 0 then
                         rewind = rewindables[1]
                         if rewind.type == "rail-ramp" then
-                            drpDebug({ "debug.path-invalid-ramp" })
+                            drpError(player, { "debug.path-invalid-ramp" })
                             return -4
                         end
 
@@ -140,9 +140,9 @@ return function(path, goal, player)
             end
         end
 
-        if turns > 4 then
+        if turns > 4 or turns < -4 then
             -- If we break out of the loop our turn is too steep.
-            drpDebug({ "debug.path-too-sharp" })
+            drpError(player, { "debug.path-too-sharp" })
             return -1
         end
     end

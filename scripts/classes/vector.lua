@@ -86,6 +86,16 @@ function Vector2d:__mul(scale)
     }, Vector2d)
 end
 
+--- Divides a vector by a scale and returns the result.
+--- @param scale number
+--- @return Vector2d
+function Vector2d:__div(scale)
+    return setmetatable({
+        x = self.x / scale,
+        y = self.y / scale,
+    }, Vector2d)
+end
+
 --- Compares two vectors
 --- @param other Vector2d
 --- @return boolean

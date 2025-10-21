@@ -13,23 +13,25 @@ local function hasSupport(pointer)
     })
 end
 
-local function getReverseSupport(pointer, plannerInfo)
+local function getDistanceSinceExistingSupport(pointer, plannerInfo)
     if pointer.layer == defines.rail_layer.ground then return 0 end
 
     if hasSupport(pointer) then
-        return -plannerInfo.supportRange
+        return plannerInfo.supportRange
     end
 
-    local minSupport = 0
+    local maxSupport = -plannerInfo.supportRange
     for _, segment in pairs(RailSegment.getAllExistingFromPointer(pointer)) do
-        if segment.type == "rail-ramp" then
-            return -plannerInfo.rampRange
+        if segment.category == "ramp" then
+            maxSupport = math.max(maxSupport, plannerInfo.rampSupportRange)
+        else
+            local pathSupport = getDistanceSinceExistingSupport(segment.forward, plannerInfo)
+            pathSupport = pathSupport - LENGTH[segment.category][segment.rotation]
+            maxSupport = math.max(maxSupport, pathSupport)
         end
-
-        minSupport = math.min(minSupport, getReverseSupport(segment.forward, plannerInfo))
     end
 
-    return minSupport
+    return maxSupport
 end
 
 --- Generates supports for the given path.
@@ -38,67 +40,66 @@ return function(builder)
     local rampRange =  builder.plannerInfo.rampSupportRange
     local supportRange = builder.plannerInfo.supportRange
 
-    local initialSupport = getReverseSupport(builder.newPath.backward, builder.plannerInfo)
-    local currentSupport = initialSupport
+    local currentSupport = getDistanceSinceExistingSupport(builder.newPath.backward, builder.plannerInfo)
 
     local indexesWithSupports = {}
-    local supportsToCreate = {}
     local doubleCheckIndecies = {}
 
     -- Phase 1: Find all parrallel supports from the main path
     for index, pointer in Helpers.edgeIter(builder.newPath) do
         if pointer.layer == defines.rail_layer.ground then
             -- Checking to see if we need a support before this ramp down.
-            if currentSupport > rampRange then
+            if currentSupport < -rampRange then
                 table.insert(doubleCheckIndecies, { index - 1, rampRange })
             end
 
             -- when we're on the ground, just set the support value to whatever
             -- ramps use.
-            currentSupport = -rampRange
+            currentSupport = rampRange
         else
             if builder.alignmentPoints[index] and hasSupport(builder.alignmentPoints[index].mainPoint) then
                 -- The main path has a support so copy it.
                 indexesWithSupports[index] = true
-                table.insert(supportsToCreate, {
+                table.insert(builder.entities, {
                     type = "rail-support",
                     position = pointer.position,
                     direction = pointer.direction % 8
                 })
 
-                if currentSupport > supportRange then
+                if currentSupport < -supportRange then
                     table.insert(doubleCheckIndecies, { index, supportRange })
                 end
 
-                currentSupport = -supportRange
+                currentSupport = supportRange
             end
 
 
             local segment = builder.newPath.segments[index + 1]
             if segment then
                 local length = LENGTH[TYPE_TO_CATEGORY[segment.type]][segment.rotation]
-                if currentSupport < 0 and currentSupport + length > 0 then
-                    currentSupport = length
+                if currentSupport > 0 and currentSupport - length < 0 then
+                    currentSupport = -length
                 else
-                    currentSupport = currentSupport + length
+                    currentSupport = currentSupport - length
                 end
             end
         end
     end
 
-    -- TODO: Ending supports aren't currently supported (lol)
-    -- if currentSupport > 0 then
-    --     -- If we hit the end and need a support, add one
-    --     indexesWithSupports[#path.segments] = true
-    --     table.insert(supportsToCreate, {
-    --         type = "rail-support",
-    --         position = path.forward.position,
-    --         direction = path.forward.direction % 8
-    --     })
-    --     if currentSupport > supportRange then
-    --         table.insert(doubleCheckIndecies, { #path.segments, supportRange })
-    --     end
-    -- end
+    -- There's a rare edge case where a turn is fully supported on the main path
+    -- but not fully supported on the opposite.
+    if currentSupport < 0 then
+        -- If we hit the end and need a support, add one
+        indexesWithSupports[#builder.newPath.segments] = true
+        table.insert(builder.entities, {
+            type = "rail-support",
+            position = builder.newPath.forward.position,
+            direction = builder.newPath.forward.direction % 8
+        })
+        if currentSupport > supportRange then
+            table.insert(doubleCheckIndecies, { #builder.newPath.segments, supportRange })
+        end
+    end
 
     -- Add custom supports where needed.
     for _, pointToCheck in pairs(doubleCheckIndecies) do
@@ -126,10 +127,6 @@ return function(builder)
             index = index - 1
         end
 
-        if index == 0 then
-            -- TODO: handle the case where we need support from behind the path.
-        end
-
         local supportsToBuild = math.ceil((distanceSinceSupport - existingSupport) / supportRange)
         local supportStep = distanceSinceSupport / (supportsToBuild + 1)
 
@@ -145,13 +142,11 @@ return function(builder)
                 end
             end
 
-            table.insert(supportsToCreate, {
+            table.insert(builder.entities, {
                 type = "rail-support",
                 position = minPoint.position,
                 direction = minPoint.direction % 8
             })
         end
     end
-
-    return supportsToCreate
 end

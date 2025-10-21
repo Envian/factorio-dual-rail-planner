@@ -60,7 +60,7 @@ local entityFilter = {
     { mode = "or", filter = "ghost_type", type = "half-diagonal-rail" },
     { mode = "or", filter = "ghost_type", type = "curved-rail-a" },
     { mode = "or", filter = "ghost_type", type = "curved-rail-b" },
-    { mode = "or", filter = "ghost_type", type = "rail-raqqmp" },
+    { mode = "or", filter = "ghost_type", type = "rail-ramp" },
     { mode = "or", filter = "ghost_type", type = "elevated-straight-rail" },
     { mode = "or", filter = "ghost_type", type = "elevated-half-diagonal-rail" },
     { mode = "or", filter = "ghost_type", type = "elevated-curved-rail-a" },

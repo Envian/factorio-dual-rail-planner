@@ -39,6 +39,22 @@ function drpDebug(message)
     end
 end
 
+--- Ptints an error message to the player.
+--- @param player LuaPlayer
+--- @param message LocalisedString
+function drpError(player, message)
+    local info = debug.getinfo(2, "lS")
+    local fname = info.short_src:match("^.+/(.+)$")
+    local body = { "error.format", fname, info.currentline, message }
+    localised_print({ "", { "error.prefix", game and game.tick or "0" }, " ", body })
+
+    if DEBUG_MODE and game then
+        game.print(body, { skip = defines.print_skip.never, game_state = false })
+    end
+
+    player.print({ "error.player-message", message }, { skip = defines.print_skip.never, game_state = false })
+end
+
 --
 -- Scoped helpers
 --

@@ -98,11 +98,13 @@ return function(builder)
 
             table.insert(builder.entities, {
                 type = "rail-signal",
+                rail_layer = alignmentPoint.mainPoint.layer,
                 position = alignmentPoint.mainPoint.position + SIGNALS.edgeSignals[alignmentPoint.mainPoint.direction][1],
                 direction = Turn.around(alignmentPoint.mainPoint.direction)
             })
             table.insert(builder.entities, {
                 type = "rail-signal",
+                rail_layer = alignmentPoint.newPoint.layer,
                 position = alignmentPoint.newPoint.position + SIGNALS.edgeSignals[Turn.around(alignmentPoint.newPoint.direction)][1],
                 direction = alignmentPoint.newPoint.direction
             })

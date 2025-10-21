@@ -104,12 +104,12 @@ function RailBuilder:draw()
     for _, pair in pairs(self.alignmentPoints) do
         local start = pair.mainPoint.position
         if pair.mainPoint.layer == defines.rail_layer.elevated then
-            start:move({ x = 0, y = -3 })
+            start = start + { x = 0, y = -3 }
         end
 
         local finish = pair.newPoint.position
         if pair.newPoint.layer == defines.rail_layer.elevated then
-            finish:move({ x = 0, y = -3 })
+            finish = finish + { x = 0, y = -3 }
         end
 
         rendering.draw_line({

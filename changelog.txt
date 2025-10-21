@@ -1,7 +1,15 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.0
 Date: ????
-  Changes:
+  Major Features:
+    - Added configuration to control rail spacing.
+    - Added option for left hand drive.
+    - Added rail signal distance option.
+  Features:
+    - Reworked left turn algorithm for better turn support.
+    - Updated rail supports algorithm to line up supports where possible.
+  Debug:
+    - Added debugging utilities.
 ---------------------------------------------------------------------------------------------------
 Version: 0.0.1
 Date: 2025-03-23
