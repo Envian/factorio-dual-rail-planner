@@ -44,7 +44,7 @@ function RailBuilder.new(player, planner, mainPath)
     -- Move our start point forward to account for any unpaid debt.
     local historyPointer = storage.history[player.index].pointer
     if historyPointer and mainPath.backward:isOpposite(historyPointer) then
-        local debt = TURN_DISTANCE[historyPointer.direction][Turn.STRAIGHT] * -storage.history[player.index].debt
+        local debt = TURN_DISTANCE[historyPointer.direction][Turn.STRAIGHT] * storage.history[player.index].debt
         startPointer.position:move(DIRECTION_VECTORS[historyPointer.direction] * debt)
     end
 
