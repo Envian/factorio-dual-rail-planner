@@ -1,6 +1,7 @@
 local OPPOSITE_OFFSETS = require("scripts.rail-consts.raw.opposite-offsets")
 
 local Turn = require("scripts.classes.turn")
+local Vector2d = require("scripts.classes.vector")
 
 --- @class (exact) RailPointer
 --- @field position Vector2d
@@ -16,14 +17,19 @@ RailPointer.__index = RailPointer
 --- @param params RailPointer
 --- @return RailPointer
 function RailPointer:new(params)
-    return setmetatable(params, RailPointer)
+    return setmetatable({
+        position = Vector2d:new(params.position),
+        direction = params.direction,
+        layer = params.layer,
+        surface = params.surface
+    }, RailPointer)
 end
 
 --- Returns the rail pointer in the opposite direction.
 --- @return RailPointer
 function RailPointer:createReverse()
     return RailPointer:new({
-        position = self.position,
+        position = Vector2d:new(self.position),
         direction = Turn.around(self.direction),
         layer = self.layer,
         surface = self.surface

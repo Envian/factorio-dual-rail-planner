@@ -20,13 +20,13 @@ function RailPath.new(params)
     if getmetatable(params) == RailPointer then
         -- RailPointer constructor.
         path.segments = {}
-        path.forward = params
+        path.forward = RailPointer:new(params)
         path.backward = params:createReverse()
     else
         -- Array constructor
         path.segments = params
-        path.forward = params[#params].forward
-        path.backward = params[1].backward
+        path.forward = RailPointer:new(params[#params].forward)
+        path.backward = RailPointer:new(params[1].backward)
     end
 
 
@@ -43,8 +43,8 @@ function RailPath.fromList(paths)
     setmetatable(path, RailPath)
 
     path.segments = {}
-    path.forward = paths[1].forward
-    path.backward = paths[1].backward
+    path.forward = RailPointer:new(paths[1].forward)
+    path.backward = RailPointer:new(paths[1].backward)
 
     for index = 1, #paths[1].segments do
         table.insert(path.segments, paths[1].segments[index])
@@ -92,8 +92,8 @@ function RailPath:tryAdd(segment)
         if segment.backward:isOpposite(self.backward) then
             self.segments[1]:reverse()
             table.insert(self.segments, segment)
-            self.backward = self.segments[1].backward
-            self.forward = segment.forward
+            self.backward = RailPointer:new(self.segments[1].backward)
+            self.forward = RailPointer:new(segment.forward)
             return true
         end
     end
@@ -106,7 +106,7 @@ end
 function RailPath:extend(turn)
     local segment = RailSegment.fromPointer(self.forward, turn)
     table.insert(self.segments, segment)
-    self.forward = segment.forward
+    self.forward = RailPointer:new(segment.forward)
 end
 
 --- Extends this path with a ramp.
@@ -114,7 +114,7 @@ function RailPath:extendRamp()
     local segment = RailSegment.rampFromPointer(self.forward)
     table.insert(self.segments, segment)
     if segment then
-        self.forward = segment.forward
+        self.forward = RailPointer:new(segment.forward)
     end
 end
 
@@ -123,7 +123,7 @@ end
 function RailPath:rewind()
     local rewind = table.remove(self.segments)
     if rewind then
-        self.forward = rewind.backward:createReverse()
+        self.forward = RailPointer:new(rewind.backward:createReverse())
     end
     return rewind
 end
@@ -136,7 +136,7 @@ function RailPath:join(other)
         for _, segment in ipairs(other.segments) do
             table.insert(self.segments, segment)
         end
-        self.forward = self.segments[#self.segments].forward
+        self.forward = RailPointer:new(self.segments[#self.segments].forward)
         return true
     end
 
@@ -145,7 +145,7 @@ function RailPath:join(other)
             other.segments[index]:reverse()
             table.insert(self.segments, other.segments[index])
         end
-        self.forward = self.segments[#self.segments].forward
+        self.forward = RailPointer:new(self.segments[#self.segments].forward)
         return true
     end
 

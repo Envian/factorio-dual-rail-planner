@@ -8,6 +8,7 @@ local METADATA_BY_TURN = require("scripts.rail-consts.by-turn")
 local Helper = require("scripts.helpers")
 local Turn = require("scripts.classes.turn")
 local RailPointer = require("scripts.classes.rail-pointer")
+local Vector2d = require("scripts.classes.vector")
 
 --- @class (exact) RailSegment
 --- @field turn Turn
@@ -113,7 +114,7 @@ function RailSegment.fromEntity(rail)
     segment.type = type
     segment.category = category
     segment.rotation = rail.direction
-    segment.position = rail.position
+    segment.position = Vector2d:new(rail.position)
     segment.surface = rail.surface
 
     segment.forward = RailPointer:new({
