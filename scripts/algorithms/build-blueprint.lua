@@ -65,6 +65,7 @@ return function(entities, player, plannerInfo)
             filled = true,
             players = { player },
             surface = player.surface,
+            only_in_alt_mode = true,
         })
         rendering.draw_circle({
             color = { 0, 1, 1, 1 },
@@ -76,6 +77,7 @@ return function(entities, player, plannerInfo)
             filled = true,
             players = { player },
             surface = player.surface,
+            only_in_alt_mode = true,
         })
         rendering.draw_circle({
             color = { 1, 0, 1, 1 },
@@ -87,6 +89,7 @@ return function(entities, player, plannerInfo)
             filled = true,
             players = { player },
             surface = player.surface,
+            only_in_alt_mode = true,
         })
     end
 end

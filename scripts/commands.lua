@@ -38,8 +38,6 @@ commands.add_command("drpreset", "Resets Storage to default settings.", function
     storage.history = {}
     -- storage.onticks = { registered = false }
 
-    script.on_event(defines.events.on_tick, nil)
-
     for index, player in pairs(game.players) do
         storage.parsers[index] = EventParser.new(player)
         storage.history[index] = {}

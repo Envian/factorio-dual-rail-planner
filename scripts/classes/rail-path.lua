@@ -163,4 +163,6 @@ function RailPath:range()
     return "~"
 end
 
+
+script.register_metatable("RailPath", RailPath)
 return RailPath

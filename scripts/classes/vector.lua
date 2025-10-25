@@ -103,4 +103,5 @@ function Vector2d:__eq(other)
     return self.x == other.x and self.y == other.y
 end
 
+script.register_metatable("Vector2d", Vector2d)
 return Vector2d

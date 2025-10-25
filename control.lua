@@ -17,7 +17,6 @@ script.on_init(function()
     storage.parsers = {}
     --- @type { [number]: { pointer: RailPointer, debt: number } }
     storage.history = {}
-    storage.onticks = { registered = false }
 
     for index, player in pairs(game.players) do
         storage.parsers[index] = EventParser.new(player)

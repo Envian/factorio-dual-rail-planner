@@ -119,7 +119,8 @@ function RailBuilder:draw()
             dash_length = 3/32,
             from = start,
             to = finish,
-            surface = pair.mainPoint.surface
+            surface = pair.mainPoint.surface,
+            only_in_alt_mode = true
         })
     end
 
