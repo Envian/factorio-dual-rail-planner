@@ -128,6 +128,23 @@ local function edgeIter(path)
     end
 end
 
+--- Iterates over alignment points, ensuring 0 is first.
+--- @param alignmentPoints AlignmentPoint[]
+--- @return fun(points: AlignmentPoint[], key: number?): number?, AlignmentPoint?
+local function alignmentIterator(alignmentPoints)
+    local first = alignmentPoints[0]
+
+    return function(_, key)
+        if not key and first then
+            return 0, first
+        end
+
+        key, point = next(alignmentPoints, key ~= 0 and key or nil)
+        if key == 0 then return nil, nil end
+        return key, point
+    end
+end
+
 --- Returns the first value returned by func
 --- @generic T
 --- @generic V
@@ -149,5 +166,6 @@ return {
     getTurnFromEntityDirections = getTurnFromEntityDirections,
     getEntityAt = getEntityAt,
     edgeIter = edgeIter,
+    alignmentIterator = alignmentIterator,
     first = first,
 }

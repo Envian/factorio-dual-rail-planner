@@ -65,11 +65,31 @@ local function getDistanceSinceSignal(pointer, maxDistance)
     return maxDistance
 end
 
+--- comment
+--- @param builder RailBuilder
+--- @param alignmentPoint AlignmentPoint
+--- @return boolean
+local function canBuildSignals(builder, alignmentPoint)
+    -- Don't build if we're at the end of a path
+    if alignmentPoint.newIndex == #builder.newPath.segments then return false end
+    if alignmentPoint.mainIndex == 0 then return false end
+
+    -- Don't build if we'd end up attaching to a rail ramp
+    local entity = builder.newPath.segments[alignmentPoint.newIndex + 1]
+    if entity and entity.category == "ramp" then return false end
+
+    entity = builder.mainPath.segments[alignmentPoint.mainIndex]
+    if entity and entity.category == "ramp" then return false end
+
+    return true
+end
+
 --- Adds signal entities
 --- @param builder RailBuilder
 return function(builder)
     -- We can only place signals on aligned points.
-    if #builder.alignmentPoints == 0 then return {} end
+    if #builder.alignmentPoints == 0 then return end
+    if not settings.get_player_settings(builder.player)["signals-enabled"].value then return end
 
     local minSignalDistance = settings.get_player_settings(builder.player)["signals-distance"].value
 
@@ -78,7 +98,8 @@ return function(builder)
     local mainDistanceSince = getDistanceSinceSignal(builder.mainPath.backward, minSignalDistance)
     local newDistanceSince = getDistanceSinceSignal(builder.newPath.backward, minSignalDistance)
 
-    for _, alignmentPoint in pairs(builder.alignmentPoints) do
+    -- Special iter needed so 0 is called first.
+    for _, alignmentPoint in helpers.alignmentIterator(builder.alignmentPoints) do
         -- Advance both sides and count distance.
         while mainIndex < alignmentPoint.mainIndex do
             mainIndex = mainIndex + 1
@@ -91,8 +112,12 @@ return function(builder)
             newDistanceSince = newDistanceSince + LENGTHS[segment.category][segment.rotation]
         end
 
+
         -- If its been far enough on both paths, place a signal.
-        if mainDistanceSince >= minSignalDistance and newDistanceSince >= minSignalDistance then
+        if  mainDistanceSince >= minSignalDistance and
+            newDistanceSince >= minSignalDistance and
+            canBuildSignals(builder, alignmentPoint)
+        then
             mainDistanceSince = 0
             newDistanceSince = 0
 
