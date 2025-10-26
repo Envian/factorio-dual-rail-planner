@@ -32,6 +32,11 @@ script.on_event(defines.events.on_player_removed, function(event)
     storage.parsers[event.player_index] = nil
 end)
 
+script.on_event(defines.events.on_player_created, function(event)
+    storage.parsers[event.player_index] = EventParser.new(game.players[event.player_index])
+    storage.history[event.player_index] = {}
+end)
+
 --
 --  Activation Events
 --

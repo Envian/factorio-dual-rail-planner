@@ -20,13 +20,14 @@ for _, modData in pairs(prototypes.mod_data) do
         }})[modData.data.planner]
 
         local signal = prototypes.entity[modData.data.signal]
+        local support = planner.support or {}
 
         local names = {
-            ["rail-support"] = planner.support.name,
+            ["rail-support"] = support.name,
             ["rail-signal"] = modData.data.signal,
         }
         local tileSizes = {
-            ["rail-support"] = { w = planner.support.tile_width, h = planner.support.tile_height },
+            ["rail-support"] = { w = support.tile_width, h = support.tile_height },
             ["rail-signal"] = { w = signal.tile_width, h = signal.tile_height },
         }
 
