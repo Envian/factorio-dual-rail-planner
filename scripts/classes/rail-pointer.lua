@@ -13,6 +13,12 @@ local RailPointer = {}
 ---@diagnostic disable-next-line: inject-field
 RailPointer.__index = RailPointer
 
+local function sign(val)
+    if val > 0 then return 1
+    elseif val < 0 then return -1
+    else return 0 end
+end
+
 --- Creates a new pointer.
 --- @param params RailPointer
 --- @return RailPointer
@@ -40,19 +46,17 @@ end
 --- @param trackOffset number
 --- @return RailPointer
 function RailPointer:createParrallel(trackOffset)
-    local evenOffsets = math.floor(math.abs(trackOffset) / 2) * 2
-    local oddOffsets = trackOffset % 2
+    local driveSide = sign(trackOffset)
+    trackOffset = math.abs(trackOffset)
 
     local offset =
-        OPPOSITE_OFFSETS.even[self.direction] * evenOffsets +
-        OPPOSITE_OFFSETS.odd[self.direction] * oddOffsets
+        OPPOSITE_OFFSETS.single[self.direction] * math.floor(trackOffset) +
+        OPPOSITE_OFFSETS.double[self.direction] * math.floor(trackOffset / 2) +
+        OPPOSITE_OFFSETS.quad[self.direction] * math.floor(trackOffset / 4)
 
-    if trackOffset < 0 then
-        offset:scale(-1)
-    end
 
     return RailPointer:new({
-        position = self.position + offset,
+        position = self.position + (offset * driveSide),
         direction = self.direction,
         layer = self.layer,
         surface = self.surface

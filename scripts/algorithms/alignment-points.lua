@@ -1,7 +1,23 @@
 local DIRECTION_VECTORS = require("scripts.rail-consts.raw.direction-vectors")
-local OPPOSITE_OFFSETS = require("scripts.rail-consts.raw.opposite-offsets")
+
+local Vector2d = require("scripts.classes.vector")
 
 local MARGIN_OF_ERROR = 0.0000001
+
+local DIAGONAL_CORRECTIONS = {
+    [defines.direction.northeast] = Vector2d:new( 1,-1),
+    [defines.direction.southeast] = Vector2d:new( 1, 1),
+    [defines.direction.southwest] = Vector2d:new(-1, 1),
+    [defines.direction.northwest] = Vector2d:new(-1,-1),
+    [defines.direction.northnortheast] = Vector2d:new( 0, 1),
+    [defines.direction.eastnortheast]  = Vector2d:new( 1, 0),
+    [defines.direction.eastsoutheast]  = Vector2d:new(-1, 0),
+    [defines.direction.southsoutheast] = Vector2d:new( 0, 1),
+    [defines.direction.southsouthwest] = Vector2d:new( 0,-1),
+    [defines.direction.westsouthwest]  = Vector2d:new(-1, 0),
+    [defines.direction.westnorthwest]  = Vector2d:new( 1, 0),
+    [defines.direction.northnorthwest] = Vector2d:new( 0,-1),
+}
 
 local function closeToZero(val)
     return val < MARGIN_OF_ERROR and val > -MARGIN_OF_ERROR
@@ -23,7 +39,8 @@ local function getAlignment(newPointer, mainPointer)
 
     -- Diagonals have different offsets for odd numbered rail gaps
     if newPointer.direction % 4 > 0 then
-        offset:move(OPPOSITE_OFFSETS.odd[newPointer.direction])
+        offset:move(DIAGONAL_CORRECTIONS[newPointer.direction])
+
         local newPerpendicularDistance = offset:crossProduct(directionVector)
 
         if closeToZero(newPerpendicularDistance) then
