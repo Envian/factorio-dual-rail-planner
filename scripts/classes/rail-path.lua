@@ -2,6 +2,8 @@ local Helpers = require("scripts.helpers")
 local RailPointer = require("scripts.classes.rail-pointer")
 local RailSegment = require("scripts.classes.rail-segment")
 
+local Turn = require("scripts.classes.turn")
+
 --- @class (exact) RailPath
 --- @field segments RailSegment[]
 --- @field forward RailPointer
@@ -122,8 +124,28 @@ end
 --- @return RailSegment?
 function RailPath:rewind()
     local rewind = table.remove(self.segments)
+
+    -- Rewind a real entity if we didn't find one from our path.
+    if not rewind then
+        local rewindables = RailSegment.getAllExistingFromPointer(self.backward)
+        local branches = RailSegment.getAllExistingFromPointer(self.backward:createReverse())
+
+        if #rewindables == 1 and #branches == 0 then
+            rewind = rewindables[1]
+            rewind:reverse()
+        elseif #rewindables > 0 or #branches > 0 then
+            -- Can't rewind if we hit a branch
+            return nil
+        else
+            -- Rewind with a fake straight if nothing else exists.
+            rewind = RailSegment.fromPointer(self.backward, Turn.STRAIGHT)
+            rewind:reverse()
+        end
+    end
+
     if rewind then
-        self.forward = RailPointer:new(rewind.backward:createReverse())
+        self.backward = RailPointer:new(rewind.backward)
+        self.forward = self.backward:createReverse()
     end
     return rewind
 end

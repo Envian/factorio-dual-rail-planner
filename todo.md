@@ -15,3 +15,10 @@
     - Add alternative algorithm: cheater supports.
     - Better support for elevated starts and ends.
     - Option for support placement which avoids obsticals.
+
+
+## Short Term
+- Fix rewinding with Entities
+    - Rewinding doesn't currently remove existing entities
+- Solo Elevated Segments w/ history
+- Enabled Cursor UX

@@ -4,9 +4,6 @@ local TURN_DISTANCES = require("scripts.rail-consts.turn-distance")
 
 local Turn = require("scripts.classes.turn")
 
-local RailSegment = require("scripts.classes.rail-segment")
-local RailPointer = require("scripts.classes.rail-pointer")
-
 local MARGIN_OF_ERROR = 0.0000001
 
 --- Floors this number with a fix for floating point arithmatic.
@@ -23,9 +20,9 @@ end
 --- Finds a path to the goal
 --- @param path RailPath
 --- @param goal RailPointer
---- @param player LuaPlayer
+--- @param builder RailBuilder
 --- @return number
-return function(path, goal, player)
+return function(path, goal, builder)
     local goalHeading = DIRECTION_VECTORS[goal.direction]
     local turns = Turn.normalize(goal.direction - path.forward.direction)
 
@@ -37,32 +34,24 @@ return function(path, goal, player)
         local perpendicularDistance = offset:crossProduct(goalHeading)
 
         if turns == 0 then
-            if not closeToZero(perpendicularDistance) then
-                drpDebug({ "debug.s-bend-error" })
-                if not DEBUG_MODE then
-                    player.print({ "debug.s-bend-error" })
+            -- always add ramps first if necessary.
+            if path.forward.layer ~= goal.layer then
+                if path.forward.direction % 4 ~= 0 then
+                    drpError(builder.player, { "debug.path-invalid-ramp" })
+                    return -4
                 end
-                return -5
+
+                path:extendRamp()
             else
-                -- always add ramps first if necessary.
-                if path.forward.layer ~= goal.layer then
-                    if path.forward.direction % 4 ~= 0 then
-                        drpDebug({ "debug.path-invalid-ramp" })
-                        return -4
-                    end
+                local segmentsToAdd = integerize(currentHeading:dotProduct(offset) / straightLength)
 
-                    path:extendRamp()
-                else
-                    local segmentsToAdd = integerize(currentHeading:dotProduct(offset) / straightLength)
-
-                    if segmentsToAdd >= 0 then
-                        for _ = 1, segmentsToAdd do
-                            path:extend(Turn.STRAIGHT)
-                        end
-                        return 0
-                    elseif segmentsToAdd < 0 then
-                        return -segmentsToAdd
+                if segmentsToAdd >= 0 then
+                    for _ = 1, segmentsToAdd do
+                        path:extend(Turn.STRAIGHT)
                     end
+                    return 0
+                elseif segmentsToAdd < 0 then
+                    return -segmentsToAdd
                 end
             end
         else
@@ -76,56 +65,22 @@ return function(path, goal, player)
             assert(rotationFactor < -MARGIN_OF_ERROR or rotationFactor > MARGIN_OF_ERROR, "Turn algorithm invoked when straight.")
 
             -- This gets the distance to the intersection of the current and target line.
-            if integerize(straightDistance) < 0 then
+            if closeToZero(perpendicularDistance) or integerize(straightDistance) < 0 then
                 -- Can't complete this turn, rewind and try again.
                 local rewind = path:rewind()
-
                 if rewind then
-                    if rewind.type == "rail-ramp" then
-                        drpError(player, { "debug.path-invalid-ramp" })
-                        return -4
+                    if rewind.category == "ramp" then
+                        drpError(builder.player, { "debug.path-rewind-failed" })
+                        return -1
                     end
-                    rewind:drawRewind(player)
-                else
-                    -- Can't simply rewind. Look backwards for existing rails to
-                    local rewindables = RailSegment.getAllExistingFromPointer(path.backward)
-                    local branches = RailSegment.getAllExistingFromPointer(path.backward:createReverse())
 
-                    -- Look for an existing segment we can rip out.
-                    if #rewindables == 1 and #branches == 0 then
-                        rewind = rewindables[1]
-                        if rewind.type == "rail-ramp" then
-                            drpError(player, { "debug.path-invalid-ramp" })
-                            return -4
-                        end
-
-                        if rewind.entity and rewind.entity.valid then
-                            rewind.entity.order_deconstruction(player.force, player)
-                        end
-                        rewind:drawRewind(player)
-                        rewind:reverse()
-
-                        path.backward = rewind.backward
-                        path.forward = path.backward:createReverse()
-                    elseif #rewindables > 0 or #branches > 0 then
-                        -- Don't rewind if we hit something.
-                        drpDebug({ "debug.path-rewind-failed" })
-                        return -2
-                    else
-                        -- Rewind with a fake straight if nothing else exists.
-                        local straightsToRewind = integerize(straightDistance / straightLength)
-                        path.forward = RailPointer:new({
-                            direction = path.forward.direction,
-                            layer = path.forward.layer,
-                            surface = path.forward.surface,
-                            position = path.forward.position + currentHeading * (straightsToRewind * -straightDistance),
-                        })
-                        path.backward = path.forward:createReverse()
-                    end
-                end
-
-                if rewind then
                     turns = turns + rewind.turn
+                    table.insert(builder.rewinds, rewind)
+                    rewind:drawRewind(builder.player)
+                else
+                    -- Rewind Failed.
+                    drpError(builder.player, { "debug.path-rewind-failed" })
+                    return -1
                 end
             else
                 -- Turning and can safely add the turn.
@@ -142,11 +97,11 @@ return function(path, goal, player)
 
         if turns > 4 or turns < -4 then
             -- If we break out of the loop our turn is too steep.
-            drpError(player, { "debug.path-too-sharp" })
-            return -1
+            drpError(builder.player, { "debug.path-too-sharp" })
+            return -2
         end
     end
 
     drpDebug({ "debug.path-loop-break" })
-    return -3
+    return -9
 end

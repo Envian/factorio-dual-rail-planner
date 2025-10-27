@@ -11,18 +11,33 @@ local const = require("scripts.constants")
 --- Registers a planner for DRP placement.
 --- @param planner data.RailPlannerPrototype
 --- @param signal string
-function registerPlanner(planner, signal)
-    local support = data.raw["rail-support"][planner.support]
-    local rampLength
-    for _, railName in ipairs(planner.rails) do
-        local ramp = data.raw["rail-ramp"][railName]
-        if ramp then
-            rampLength = ramp.support_range
-            break
+--- @param setPrimary boolean
+function registerPlanner(planner, signal, setPrimary)
+    -- TODO: Show shortcut only when rail planner entity (Rail) has been researched.
+
+    -- Clone the rail planner, but remove ramps since they aren't fully supported atm.
+    local mockPlanner = table.deepcopy(planner)
+    local validRails = {}
+    for _, rail in ipairs(mockPlanner.rails) do
+        -- Ramps are currently poorly supported. Remove them from the mock.
+        if not data.raw["rail-ramp"][rail] then
+            table.insert(validRails, rail);
         end
     end
+    mockPlanner.name = const.MOCK_PLANNER_PREFIX .. planner.name
+    mockPlanner.rails = validRails
+    mockPlanner.localised_name = { "shortcut.planner-select-title", {"item-name." .. planner.name} }
 
-    -- TODO: Show shortcut only when rail planner entity (Rail) has been researched.
+    -- Hide this
+    mockPlanner.flags = mockPlanner.flags or {}
+    table.insert(mockPlanner.flags, "only-in-cursor")
+    mockPlanner.hidden_in_factoriopedia = true
+    mockPlanner.hidden = true
+
+    if setPrimary then
+        planner.flags = planner.flags or {}
+        table.insert(planner.flags, "primary-place-result")
+    end
 
     data:extend({{
         type = "shortcut",
@@ -39,15 +54,14 @@ function registerPlanner(planner, signal)
         data_type = const.DATA_REGISTERED_PLANNER_TYPE,
         data = {
             planner = planner.name,
-            -- Temporary: currently no way to get support_range in runtime.
-            -- Replace when fixed: https://forums.factorio.com/viewtopic.php?p=680829
-            supportRange = support and support.support_range or 0,
-            rampSupportRange = rampLength or 0,
+            mockPlanner = const.MOCK_PLANNER_PREFIX .. planner.name,
             signal = signal,
         }
-    }})
+    },
+        mockPlanner
+    })
 end
 
 if data.raw["rail-planner"]["rail"] then
-    registerPlanner(data.raw["rail-planner"]["rail"], "rail-signal")
+    registerPlanner(data.raw["rail-planner"]["rail"], "rail-signal", true)
 end

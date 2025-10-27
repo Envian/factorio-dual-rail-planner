@@ -13,14 +13,11 @@ local PLANNER_MAP = {}
 
 for _, modData in pairs(prototypes.mod_data) do
     if modData.data_type == const.DATA_REGISTERED_PLANNER_TYPE then
-        --- @type LuaItemPrototype
-        local planner = prototypes.get_item_filtered({{
-            --- @diagnostic disable-next-line: assign-type-mismatch
-            filter = "name", name = modData.data.planner
-        }})[modData.data.planner]
-
+        local planner = prototypes.item[modData.data.planner]
+        local mockPlanner = prototypes.item[modData.data.mockPlanner]
         local signal = prototypes.entity[modData.data.signal]
         local support = planner.support or {}
+        local ramp = {}
 
         local names = {
             ["rail-support"] = support.name,
@@ -34,13 +31,17 @@ for _, modData in pairs(prototypes.mod_data) do
         for _, rail in pairs(planner.rails) do
             names[rail.type] = rail.name
             tileSizes[rail.type] = { w = rail.tile_width, h = rail.tile_height }
+
+            if rail.type == "rail-ramp" then
+                ramp = rail
+            end
         end
 
         PLANNER_MAP[modData.data.planner] = {
             names = names,
             tileSizes = tileSizes,
-            supportRange = modData.data.supportRange,
-            rampSupportRange = modData.data.rampSupportRange,
+            supportRange = support.support_range or 0,
+            rampSupportRange = ramp.support_range or 0,
         }
     end
 end

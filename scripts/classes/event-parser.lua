@@ -1,5 +1,6 @@
 local TYPE_TO_LAYER = require("scripts.rail-consts.raw.layer")
 local SHORTCUT_PREFIX = require("scripts.constants").SHORTCUT_PREFIX
+local const = require("scripts.constants")
 
 local Helpers = require("scripts.helpers")
 local RailPath = require("scripts.classes.rail-path")
@@ -40,6 +41,7 @@ local RailSegment = require("scripts.classes.rail-segment")
 
 --- @class (exact) EventParser
 --- @field planner string?
+--- @field mockPlanner string?
 --- @field hasEvents boolean
 --- @field player LuaPlayer
 --- @field private path RailPath?
@@ -147,6 +149,7 @@ function EventParser:toggle(railPlanner)
     else
         if self.planner then
             drpDebug({ "debug.planner-disable", self.planner })
+            self.elevatedCache = nil
             self.player.set_shortcut_toggled(SHORTCUT_PREFIX .. self.planner, false)
         end
         self:enable(railPlanner)
@@ -159,8 +162,9 @@ function EventParser:enable(railPlanner)
     drpDebug({ "debug.planner-enable", railPlanner })
 
     self.planner = railPlanner
+    self.mockPlanner = const.MOCK_PLANNER_PREFIX .. railPlanner
     self.player.clear_cursor()
-    self.player.cursor_ghost = self.planner
+    self.player.cursor_ghost = self.mockPlanner
     self.player.set_shortcut_toggled(SHORTCUT_PREFIX .. railPlanner, true)
 end
 
@@ -170,6 +174,7 @@ function EventParser:disable()
     self.player.clear_cursor()
     self.player.set_shortcut_toggled(SHORTCUT_PREFIX .. self.planner, false)
     self.planner = nil
+    self.mockPlanner = nil
     self.elevatedCache = nil -- Clear the cache so we don't accidentally use an incomplete one.
 end
 
@@ -178,7 +183,7 @@ function EventParser:checkCursor()
     if self.planner == nil then return end
 
     -- Check if we're still using the same planner.
-    if not self.player.cursor_ghost or self.player.cursor_ghost.name.name ~= self.planner then
+    if not self.player.cursor_ghost or self.player.cursor_ghost.name.name ~= self.mockPlanner then
         self:disable()
     end
 end

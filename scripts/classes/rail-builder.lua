@@ -15,6 +15,7 @@ local algos = require("scripts.algorithms")
 --- @field newPath RailPath
 --- @field alignmentPoints AlignmentPoint[]
 --- @field entities BlueprintEntity[]
+--- @field rewinds RailSegment[]
 --- @field private railDistance number
 --- @field private debt number
 local RailBuilder = {}
@@ -51,6 +52,7 @@ function RailBuilder.new(player, planner, mainPath)
     builder.newPath = RailPath.new(startPointer)
     builder.mainPath = mainPath
     builder.entities = {}
+    builder.rewinds = {}
     builder.debt = 0
 
     setmetatable(builder, RailBuilder)
@@ -59,7 +61,7 @@ end
 
 function RailBuilder:buildPath()
     for _, segment in ipairs(self.mainPath.segments) do
-        self.debt = algos.pathfind(self.newPath, segment.forward:createParrallel(self.railDistance), self.player)
+        self.debt = algos.pathfind(self.newPath, segment.forward:createParrallel(self.railDistance), self)
 
         -- If we encounter an error, just bail.
         if self.debt < 0 then
@@ -89,8 +91,6 @@ end
 function RailBuilder:addExtras()
     algos.addSupports(self)
     algos.addSignals(self)
-
-    -- TODO: Add Signals
     -- TODO: Add Power Poles
 end
 
