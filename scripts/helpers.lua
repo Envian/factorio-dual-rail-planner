@@ -75,7 +75,7 @@ local function getTurnFromEntityDirections(a, b)
 end
 
 --- Finds an exact entity in the game world.
---- @param params { type: string | string[], surface: LuaSurface, position: Vector2d, direction: defines.direction }
+--- @param params { type: string | string[], surface: LuaSurface, position: Vector2d, direction: defines.direction, layer: defines.rail_layer? }
 --- @return LuaEntity?
 local function getEntityAt(params)
     -- Search for real entities first.
@@ -86,7 +86,9 @@ local function getEntityAt(params)
         to_be_deconstructed = false,
     })) do
         -- find_entities_filtered checks collison box, not the entity center.
-        if params.position:equals(entity.position) then
+        if params.position:equals(entity.position) and (
+            not params.layer or params.layer == entity.rail_layer
+        ) then
             return entity
         end
     end
@@ -100,7 +102,9 @@ local function getEntityAt(params)
         to_be_deconstructed = false,
     })) do
         -- find_entities_filtered checks collison box, not the entity center.
-        if params.position:equals(entity.position) then
+        if params.position:equals(entity.position) and (
+            not params.layer or params.layer == entity.rail_layer
+        ) then
             return entity
         end
     end

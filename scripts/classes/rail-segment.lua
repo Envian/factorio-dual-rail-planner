@@ -4,8 +4,10 @@ local CATEGORY_TO_TYPE = require("scripts.rail-consts.raw.category-to-type")
 local EDGE_OFFSET = require("scripts.rail-consts.raw.edge-offset")
 local METADATA_BY_CATEGORY = require("scripts.rail-consts.by-category")
 local METADATA_BY_TURN = require("scripts.rail-consts.by-turn")
+local SIGNALS = require("scripts.rail-consts.raw.signals")
 
-local Helper = require("scripts.helpers")
+
+local Helpers = require("scripts.helpers")
 local Turn = require("scripts.classes.turn")
 local RailPointer = require("scripts.classes.rail-pointer")
 local Vector2d = require("scripts.classes.vector")
@@ -106,11 +108,11 @@ end
 function RailSegment.fromEntity(rail)
     local segment = {}
 
-    local type = Helper.getEntityType(rail)
+    local type = Helpers.getEntityType(rail)
     local category = TYPE_TO_CATEGORY[type]
     local forward, backward = table.unpack(METADATA_BY_CATEGORY[category][rail.direction].edges)
 
-    segment.turn = Helper.getTurnFromEntityDirections(forward, backward)
+    segment.turn = Helpers.getTurnFromEntityDirections(forward, backward)
     segment.type = type
     segment.category = category
     segment.rotation = rail.direction
@@ -225,15 +227,76 @@ end
 --- @return LuaEntity?
 function RailSegment:getEntity()
     if not self.entity or not self.entity.valid then
-        self.entity = Helper.getEntityAt({
+        self.entity = Helpers.getEntityAt({
             type = self.type,
             surface = self.surface,
             position = self.position,
-            direction = self.rotation
+            direction = self.rotation,
         })
     end
 
     return self.entity
+end
+
+--- Gets the support for this segment
+--- @return LuaEntity?
+function RailSegment:getSupport()
+    if self.forward.layer == defines.rail_layer.elevated then
+        return Helpers.getEntityAt({
+            type = "rail-support",
+            direction = self.forward.direction % 8,
+            position = self.forward.position,
+            surface = self.forward.surface,
+        })
+    end
+
+    return nil
+end
+
+function RailSegment:deconstruct(player)
+    local entities = {
+        self:getEntity(),
+        self:getSupport(),
+        Helpers.getEntityAt({
+            direction = Turn.around(self.forward.direction),
+            position = self.forward.position + SIGNALS.edgeSignals[self.forward.direction][1],
+            surface = self.surface,
+            type = { "rail-signal", "rail-chain-signal" },
+            layer = self.forward.layer,
+        }),
+        Helpers.getEntityAt({
+            direction = self.forward.direction,
+            position = self.forward.position + SIGNALS.edgeSignals[Turn.around(self.forward.direction)][2],
+            surface = self.surface,
+            type = { "rail-signal", "rail-chain-signal" },
+            layer = self.forward.layer,
+        }),
+        Helpers.getEntityAt({
+            direction = Turn.around(self.backward.direction),
+            position = self.backward.position + SIGNALS.edgeSignals[self.backward.direction][1],
+            surface = self.surface,
+            type = { "rail-signal", "rail-chain-signal" },
+            layer = self.backward.layer,
+        }),
+        Helpers.getEntityAt({
+            direction = self.backward.direction,
+            position = self.backward.position + SIGNALS.edgeSignals[Turn.around(self.backward.direction)][2],
+            surface = self.surface,
+            type = { "rail-signal", "rail-chain-signal" },
+            layer = self.backward.layer,
+        }),
+        SIGNALS.bonusSignals[self.category] and Helpers.getEntityAt({
+            direction = SIGNALS.bonusSignals[self.category][self.rotation].signalDir,
+            position = self.position + SIGNALS.bonusSignals[self.category][self.rotation].position,
+            surface = self.surface,
+            type = { "rail-signal", "rail-chain-signal" },
+            layer = self.forward.layer,
+        }) or nil,
+    }
+
+    for _, entity in pairs(entities) do
+        entity.order_deconstruction(player.force, player)
+    end
 end
 
 --------------------

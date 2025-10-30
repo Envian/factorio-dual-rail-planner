@@ -76,6 +76,10 @@ return function(path, goal, builder)
 
                     turns = turns + rewind.turn
                     table.insert(builder.rewinds, rewind)
+
+                    -- Mark for deconstruction now, so that future iterations of the algo work
+                    rewind:deconstruct(builder.player)
+
                     rewind:drawRewind(builder.player)
                 else
                     -- Rewind Failed.
