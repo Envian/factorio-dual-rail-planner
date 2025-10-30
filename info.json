@@ -6,7 +6,7 @@
     "author": "Envian",
     "homepage": "https://github.com/Envian/factorio-dual-rail-planner",
     "description": "Adds a rail planner which places two parrallel paths.",
-    "dependencies": ["base >= 2.1.67", "? elevated-rails >= 2.0"],
+    "dependencies": ["base >= 2.0.67", "? elevated-rails >= 2.0"],
     "package": {
         "no_git_push": true,
         "readme": "README.md",
