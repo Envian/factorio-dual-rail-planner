@@ -5,9 +5,9 @@ local Vector2d = require("scripts.classes.vector")
 local MARGIN_OF_ERROR = 0.0000001
 
 local DIAGONAL_CORRECTIONS = {
-    [defines.direction.northeast] = Vector2d:new( 1,-1),
+    [defines.direction.northeast] = Vector2d:new(-1, 1),
     [defines.direction.southeast] = Vector2d:new( 1, 1),
-    [defines.direction.southwest] = Vector2d:new(-1, 1),
+    [defines.direction.southwest] = Vector2d:new( 1,-1),
     [defines.direction.northwest] = Vector2d:new(-1,-1),
     [defines.direction.northnortheast] = Vector2d:new( 0, 1),
     [defines.direction.eastnortheast]  = Vector2d:new( 1, 0),

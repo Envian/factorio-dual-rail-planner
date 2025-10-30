@@ -103,5 +103,8 @@ function Vector2d:__eq(other)
     return self.x == other.x and self.y == other.y
 end
 
+--- @diagnostic disable-next-line: inject-field
+Vector2d.zero = Vector2d:new(0,0)
+
 script.register_metatable("Vector2d", Vector2d)
 return Vector2d

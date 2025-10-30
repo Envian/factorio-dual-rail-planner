@@ -47,13 +47,13 @@ end
 --- @return RailPointer
 function RailPointer:createParrallel(trackOffset)
     local driveSide = sign(trackOffset)
-    trackOffset = math.abs(trackOffset)
+    local trackOffset = math.abs(trackOffset)
+    local offsetList = OPPOSITE_OFFSETS[self.direction]
+    local offsets = #offsetList
 
-    local offset =
-        OPPOSITE_OFFSETS.single[self.direction] * math.floor(trackOffset) +
-        OPPOSITE_OFFSETS.double[self.direction] * math.floor(trackOffset / 2) +
-        OPPOSITE_OFFSETS.quad[self.direction] * math.floor(trackOffset / 4)
-
+    local bigs = math.floor(trackOffset / offsets)
+    local smalls = trackOffset % offsets
+    local offset = offsetList[offsets] * bigs + (offsetList[smalls] or Vector2d.zero)
 
     return RailPointer:new({
         position = self.position + (offset * driveSide),
