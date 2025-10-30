@@ -13,21 +13,28 @@ local function hasSupport(pointer)
     })
 end
 
-local function getDistanceSinceExistingSupport(pointer, plannerInfo)
+local function getSupportValue(pointer, plannerInfo)
     if pointer.layer == defines.rail_layer.ground then return 0 end
 
-    if hasSupport(pointer) then
-        return plannerInfo.supportRange
-    end
-
     local maxSupport = -plannerInfo.supportRange
-    for _, segment in pairs(RailSegment.getAllExistingFromPointer(pointer)) do
-        if segment.category == "ramp" then
-            maxSupport = math.max(maxSupport, plannerInfo.rampSupportRange)
-        else
-            local pathSupport = getDistanceSinceExistingSupport(segment.forward, plannerInfo)
-            pathSupport = pathSupport - LENGTH[segment.category][segment.rotation]
-            maxSupport = math.max(maxSupport, pathSupport)
+    local pathsToCheck = {{ pointer, plannerInfo.supportRange }}
+
+    while #pathsToCheck > 0 do
+        local pointer, support = table.unpack(table.remove(pathsToCheck))
+
+        -- Don't continue if we won't find any useful paths.
+        if support >= maxSupport then
+            if hasSupport(pointer) then
+                maxSupport = math.max(maxSupport, support)
+            else
+                for _, entity in pairs(RailSegment.getAllExistingFromPointer(pointer)) do
+                    if entity.category == "ramp" then
+                        maxSupport = math.max(maxSupport, support - (plannerInfo.supportRange - plannerInfo.rampSupportRange))
+                    else
+                        table.insert(pathsToCheck, { entity.forward, support - LENGTH[entity.category][entity.rotation] })
+                    end
+                end
+            end
         end
     end
 
@@ -40,7 +47,7 @@ return function(builder)
     local rampRange =  builder.plannerInfo.rampSupportRange
     local supportRange = builder.plannerInfo.supportRange
 
-    local currentSupport = getDistanceSinceExistingSupport(builder.newPath.backward, builder.plannerInfo)
+    local currentSupport = getSupportValue(builder.newPath.backward, builder.plannerInfo)
 
     local indexesWithSupports = {}
     local doubleCheckIndecies = {}
