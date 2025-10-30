@@ -31,7 +31,12 @@ local function getSupportValue(pointer, plannerInfo)
                     if entity.category == "ramp" then
                         maxSupport = math.max(maxSupport, support - (plannerInfo.supportRange - plannerInfo.rampSupportRange))
                     else
-                        table.insert(pathsToCheck, { entity.forward, support - LENGTH[entity.category][entity.rotation] })
+                        local newSupport = support - LENGTH[entity.category][entity.rotation]
+                        if support > 0 and newSupport < 0 then
+                            newSUpport = -LENGTH[entity.category][entity.rotation]
+                        end
+
+                        table.insert(pathsToCheck, { entity.forward, newSupport })
                     end
                 end
             end
