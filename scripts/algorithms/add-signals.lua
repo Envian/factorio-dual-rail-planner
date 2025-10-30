@@ -72,7 +72,8 @@ end
 local function canBuildSignals(builder, alignmentPoint)
     -- Don't build if we're at the end of a path
     if alignmentPoint.newIndex == #builder.newPath.segments then return false end
-    if alignmentPoint.mainIndex == 0 then return false end
+    -- Doesn't seem like it matters
+    -- if alignmentPoint.mainIndex == 0 then return false end
 
     -- Don't build if we'd end up attaching to a rail ramp
     local entity = builder.newPath.segments[alignmentPoint.newIndex + 1]
