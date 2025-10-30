@@ -101,10 +101,11 @@ local function getEntityAt(params)
         direction = params.direction,
         to_be_deconstructed = false,
     })) do
-        -- find_entities_filtered checks collison box, not the entity center.
+        -- Currently, ghosts cannot determine rail layer of signals.
         -- if params.position:equals(entity.position) and (
             --     not params.layer or params.layer == entity.rail_layer
             -- ) then
+        -- find_entities_filtered checks collison box, not the entity center.
         if params.position:equals(entity.position) then
             return entity
         end
