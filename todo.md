@@ -18,6 +18,5 @@
 
 
 ## Release Checklist
-- Add messages when doing /drp commands
 - Fix straight debt on clear
 - Maybe support building when clear if paused

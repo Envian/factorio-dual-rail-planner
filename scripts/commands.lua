@@ -23,7 +23,9 @@ if not DEBUG_MODE then return end
 --     end
 -- end)
 
-commands.add_command("drpclear", "Clears all debug annotations.", function(event)
+commands.add_command("drpclear", { "command-text.drpclear-help" }, function(event)
+    drpInfo({ "command-text.drpclear-message" })
+
     rendering.clear()
 
     -- reset event index for easier reading.
@@ -33,7 +35,9 @@ commands.add_command("drpclear", "Clears all debug annotations.", function(event
     end
 end)
 
-commands.add_command("drpreset", "Resets Storage to default settings.", function(event)
+commands.add_command("drpreset", { "command-text.drpreset-help" }, function(event)
+    drpInfo({ "command-text.drpreset-message" })
+
     storage.parsers = {}
     storage.history = {}
     -- storage.onticks = { registered = false }
@@ -44,12 +48,11 @@ commands.add_command("drpreset", "Resets Storage to default settings.", function
     end
 end)
 
-commands.add_command("drpmark", "Marks a place in the current world.", function(event)
+commands.add_command("drpmark", { "command-text.drpmark-help" }, function(event)
     local result, _, x, y = string.find(event.parameter or "", "^(-?%d+)[%s,]+(-?%d+)$")
+    local player = game.players[event.player_index]
 
     if result then
-        local player = game.players[event.player_index]
-
         rendering.draw_circle({
             color = { 0, 0, 0, 1 },
             target = { tonumber(x), tonumber(y) },
@@ -74,9 +77,27 @@ commands.add_command("drpmark", "Marks a place in the current world.", function(
             players = { player },
             surface = player.surface,
         })
+        drpInfo(player, { "command-text.drpmark-message" })
+    else
+        drpInfo(player, { "command-text.drpmark-error" })
     end
+
 end)
 
-commands.add_command("drpdraw", "Toggles DRP Rendering mode", function(event)
-    DRAW_MODE = not DRAW_MODE
+commands.add_command("drpdraw", { "command-text.drpdraw-help" }, function(event)
+    if DRAW_MODE then
+        drpInfo({ "command-text.drpdraw-disabled" })
+
+        DRAW_MODE = false
+        rendering.clear()
+
+        -- reset event index for easier reading.
+        for _, parser in pairs(storage.parsers) do
+            --- @diagnostic disable-next-line: invisible
+            parser.eventIndex = 0
+        end
+    else
+        drpInfo({ "command-text.drpdraw-enabled" })
+        DRAW_MODE = true
+    end
 end)

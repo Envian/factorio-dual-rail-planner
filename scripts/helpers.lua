@@ -26,7 +26,7 @@ table.filter = function(target, func)
     return result
 end
 
---- Prints a debug message to stdout
+--- Prints a debug message only visible in stdout and debug mode.
 --- @param message LocalisedString
 function drpDebug(message)
     local info = debug.getinfo(2, "lS")
@@ -39,7 +39,33 @@ function drpDebug(message)
     end
 end
 
---- Ptints an error message to the player.
+--- Prints a message to the player.
+--- @param p1 LuaPlayer | LocalisedString
+--- @param p2 LocalisedString?
+function drpInfo(p1, p2)
+    local player
+    local message
+
+    if p1.object_name == "LuaPlayer" then
+        player = p1
+        message = p2
+    else
+        message = p1
+    end
+
+    (player and player.print or game.print)({ "info.player-message", message })
+
+    local info = debug.getinfo(2, "lS")
+    local fname = info.short_src:match("^.+/(.+)$")
+    local body = { "debug.format", fname, info.currentline, message }
+    localised_print({ "", { "debug.prefix", game and game.tick or "0" }, " ", body })
+
+    if DEBUG_MODE and game then
+        game.print(body, { skip = defines.print_skip.never, game_state = false })
+    end
+end
+
+--- Prints an error message to the player.
 --- @param player LuaPlayer
 --- @param message LocalisedString
 function drpError(player, message)
