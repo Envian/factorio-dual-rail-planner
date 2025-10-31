@@ -74,7 +74,9 @@ return function(builder)
     for index, segment in ipairs(builder.newPath.segments) do
         local alignmentPoint = builder.alignmentPoints[index]
 
-        if alignmentPoint and hasSupport(alignmentPoint.mainPoint) then
+        if segment.forward.layer ==defines.rail_layer.ground then
+            currentDistance = 0
+        elseif alignmentPoint and hasSupport(alignmentPoint.mainPoint) then
             table.insert(builder.entities, {
                 type = builder.plannerInfo.supportName,
                 position = segment.forward.position,
