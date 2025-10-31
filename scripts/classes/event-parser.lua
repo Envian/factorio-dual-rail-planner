@@ -144,6 +144,15 @@ end
 --- Toggles the event parser for this planner type.
 --- @param railPlanner string
 function EventParser:toggle(railPlanner)
+    -- Error states
+    if game.tick_paused then
+        drpError(self.player, { "error.game-paused" })
+        if self.planner then
+            self:disable()
+        end
+        return
+    end
+
     if self.planner == railPlanner then
         self:disable()
     else
