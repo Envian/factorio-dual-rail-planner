@@ -41,29 +41,29 @@ end
 --- @return RailPath
 --- @diagnostic disable-next-line: inject-field
 function RailPath.fromList(paths)
-    local path = {}
-    setmetatable(path, RailPath)
+    local newPath = {}
+    setmetatable(newPath, RailPath)
 
-    path.segments = {}
-    path.forward = RailPointer:new(paths[1].forward)
-    path.backward = RailPointer:new(paths[1].backward)
+    newPath.segments = {}
+    newPath.forward = RailPointer:new(paths[1].forward)
+    newPath.backward = RailPointer:new(paths[1].backward)
 
     for index = 1, #paths[1].segments do
-        table.insert(path.segments, paths[1].segments[index])
+        table.insert(newPath.segments, paths[1].segments[index])
     end
 
     if #paths > 1 then
-        if path.backward:isOpposite(paths[2].forward) or
-           path.backward:isOpposite(paths[2].backward)
+        if newPath.backward:isOpposite(paths[2].forward) or
+           newPath.backward:isOpposite(paths[2].backward)
         then
-            path:reverse()
+            newPath:reverse()
         end
         for index = 2, #paths do
-            path:join(paths[index])
+            newPath:join(paths[index])
         end
     end
 
-    return path
+    return newPath
 end
 
 --- Reverses this path.
@@ -125,8 +125,10 @@ end
 function RailPath:rewind()
     local rewind = table.remove(self.segments)
 
-    -- Rewind a real entity if we didn't find one from our path.
-    if not rewind then
+    if rewind then
+        self.forward = rewind.backward:createReverse()
+        -- Rewind a real entity if we didn't find one from our path.
+    else
         local rewindables = RailSegment.getAllExistingFromPointer(self.backward)
         local branches = RailSegment.getAllExistingFromPointer(self.backward:createReverse())
 
@@ -141,12 +143,11 @@ function RailPath:rewind()
             rewind = RailSegment.fromPointer(self.backward, Turn.STRAIGHT)
             rewind:reverse()
         end
-    end
 
-    if rewind then
         self.backward = RailPointer:new(rewind.backward)
         self.forward = self.backward:createReverse()
     end
+
     return rewind
 end
 

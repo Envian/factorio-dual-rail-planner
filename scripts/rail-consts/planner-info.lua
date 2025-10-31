@@ -3,6 +3,7 @@ local const = require("scripts.constants")
 --- @alias RailEntities RailEntityType | "rail-support" | "rail-signal"
 
 --- @class PlannerInfo
+--- @field supportName string
 --- @field supportRange number
 --- @field rampSupportRange number
 --- @field names { [RailEntities]: string }
@@ -42,6 +43,7 @@ for _, modData in pairs(prototypes.mod_data) do
             tileSizes = tileSizes,
             supportRange = support.support_range or 0,
             rampSupportRange = ramp.support_range or 0,
+            supportName = support.name,
         }
     end
 end

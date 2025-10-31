@@ -17,8 +17,8 @@
     - Option for support placement which avoids obsticals.
 
 
-## Short Term
-- Fix rewinding with Entities
-    - Rewinding doesn't currently remove existing entities
-- Solo Elevated Segments w/ history
-- Enabled Cursor UX
+## Release Checklist
+- Add messages when doing /drp commands
+- Add message when starting while paused
+- Fix straight debt on clear
+- Maybe support building when clear if paused
