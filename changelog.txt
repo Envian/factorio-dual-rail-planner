@@ -9,7 +9,7 @@ Date: 2025-10-31
   Changes:
     - Fixing deployment pipeline.
 ---------------------------------------------------------------------------------------------------
-Version: 0.1.0
+Version: 0.2.0
 Date: 2025-10-31
   Major Features:
     - Added configuration to control rail spacing.
