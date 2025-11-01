@@ -9,6 +9,8 @@
     "dependencies": ["base >= 2.0.67", "? elevated-rails >= 2.0"],
     "package": {
         "no_git_push": true,
+        "sync_portal_details": false,
+        "no_portal_upload": true,
         "readme": "README.md",
         "faq": "FAQ.md",
         "gallery": ["gallery/*"],

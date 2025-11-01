@@ -1,10 +1,11 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.1
-Date: ????
+Date: 2025-10-31
   Changes:
+    - Fixing deployment pipeline.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.0
-Date: ????
+Date: 2025-10-31
   Major Features:
     - Added configuration to control rail spacing.
     - Added option for left hand drive.
@@ -25,8 +26,3 @@ Date: 2025-03-23
     - Rail planner will self-cancel when it can't make an opposite rail.
     - Opposite rail will automatically receive supports.
     - Both paths will receive rail signals.
-  Known Issues:
-    - The left turn algorithm is incomplete. There are some patterns of left turns
-      where the algorithm gives up, but have easy solutions.
-    - Some bugs exist which cause issues when transitioning between rail layers.
-    - Some issues with starting elevated rails from rail supports.
