@@ -1,8 +1,6 @@
 local EDGES = require("scripts.rail-consts.raw.edges")
 local EDGE_OFFSET = require("scripts.rail-consts.raw.edge-offset")
 
-local Helpers = require("scripts.helpers")
-local Vector2d = require("scripts.classes.vector")
 local Turn = require("scripts.classes.turn")
 
 --- @class TurnInfo
@@ -18,7 +16,7 @@ for category, rotations in pairs(EDGES) do
     if category ~= "ramp" then
         for rotation, directions in pairs(rotations) do
             local forward, backward = table.unpack(directions)
-            local turn = Helpers.getTurnFromEntityDirections(forward, backward)
+            local turn = Util.getTurnFromEntityDirections(forward, backward)
 
             forward, backward = Turn.around(forward), Turn.around(backward)
 

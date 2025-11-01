@@ -1,7 +1,7 @@
 if script.active_mods["gvv"] then require("__gvv__.gvv")() end
 
--- Helpers must be the first import.
-require("scripts.helpers")
+-- Globals must be the first import.
+require("scripts.global")
 
 require("scripts.commands")
 local const = require("scripts.constants")
@@ -13,17 +13,7 @@ local reportProfiling = require("scripts.profiling").report
 DISABLE_EVENTS = false
 
 script.on_init(function()
-    --- @type { [number]: EventParser }
-    storage.parsers = {}
-    --- @type { [number]: { pointer: RailPointer, debt: number } }
-    storage.history = {}
-
-    for index, player in pairs(game.players) do
-        storage.parsers[index] = EventParser.new(player)
-        storage.history[index] = {}
-    end
-
-    -- TODO: Reset shortcut state
+    Util.resetState()
 end)
 
 -- NOTE: on_load is handled in ontick.lua

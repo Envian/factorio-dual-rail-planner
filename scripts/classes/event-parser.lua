@@ -2,7 +2,6 @@ local TYPE_TO_LAYER = require("scripts.rail-consts.raw.layer")
 local SHORTCUT_PREFIX = require("scripts.constants").SHORTCUT_PREFIX
 local const = require("scripts.constants")
 
-local Helpers = require("scripts.helpers")
 local RailPath = require("scripts.classes.rail-path")
 local RailSegment = require("scripts.classes.rail-segment")
 
@@ -202,7 +201,7 @@ end
 function EventParser:entityBuilt(entity)
     if self.planner == nil then return end
 
-    local type = Helpers.getEntityType(entity)
+    local type = Util.getEntityType(entity)
 
     if type == "tile-ghost" then
         table.insert(self.tiles, entity)

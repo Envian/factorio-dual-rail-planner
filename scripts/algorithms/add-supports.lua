@@ -1,11 +1,10 @@
 local TYPE_TO_LAYER = require("scripts.rail-consts.raw.layer")
 local LENGTH = require("scripts.rail-consts.raw.length")
 
-local Helpers = require("scripts.helpers")
 local RailSegment = require("scripts.classes.rail-segment")
 
 local function hasSupport(pointer)
-    return Helpers.getEntityAt({
+    return Util.getEntityAt({
         type = "rail-support",
         direction = pointer.direction % 8,
         position = pointer.position,

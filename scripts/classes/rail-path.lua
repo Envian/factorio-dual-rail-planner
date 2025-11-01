@@ -1,4 +1,3 @@
-local Helpers = require("scripts.helpers")
 local RailPointer = require("scripts.classes.rail-pointer")
 local RailSegment = require("scripts.classes.rail-segment")
 

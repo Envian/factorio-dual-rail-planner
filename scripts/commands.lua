@@ -37,15 +37,7 @@ end)
 
 commands.add_command("drpreset", { "command-text.drpreset-help" }, function(event)
     drpInfo({ "command-text.drpreset-message" })
-
-    storage.parsers = {}
-    storage.history = {}
-    -- storage.onticks = { registered = false }
-
-    for index, player in pairs(game.players) do
-        storage.parsers[index] = EventParser.new(player)
-        storage.history[index] = {}
-    end
+    Util.resetState()
 end)
 
 commands.add_command("drpmark", { "command-text.drpmark-help" }, function(event)

@@ -6,8 +6,6 @@ local METADATA_BY_CATEGORY = require("scripts.rail-consts.by-category")
 local METADATA_BY_TURN = require("scripts.rail-consts.by-turn")
 local SIGNALS = require("scripts.rail-consts.raw.signals")
 
-
-local Helpers = require("scripts.helpers")
 local Turn = require("scripts.classes.turn")
 local RailPointer = require("scripts.classes.rail-pointer")
 local Vector2d = require("scripts.classes.vector")
@@ -108,11 +106,11 @@ end
 function RailSegment.fromEntity(rail)
     local segment = {}
 
-    local type = Helpers.getEntityType(rail)
+    local type = Util.getEntityType(rail)
     local category = TYPE_TO_CATEGORY[type]
     local forward, backward = table.unpack(METADATA_BY_CATEGORY[category][rail.direction].edges)
 
-    segment.turn = Helpers.getTurnFromEntityDirections(forward, backward)
+    segment.turn = Util.getTurnFromEntityDirections(forward, backward)
     segment.type = type
     segment.category = category
     segment.rotation = rail.direction
@@ -227,7 +225,7 @@ end
 --- @return LuaEntity?
 function RailSegment:getEntity()
     if not self.entity or not self.entity.valid then
-        self.entity = Helpers.getEntityAt({
+        self.entity = Util.getEntityAt({
             type = self.type,
             surface = self.surface,
             position = self.position,
@@ -242,7 +240,7 @@ end
 --- @return LuaEntity?
 function RailSegment:getSupport()
     if self.forward.layer == defines.rail_layer.elevated then
-        return Helpers.getEntityAt({
+        return Util.getEntityAt({
             type = "rail-support",
             direction = self.forward.direction % 8,
             position = self.forward.position,
@@ -257,35 +255,35 @@ function RailSegment:deconstruct(player)
     local entities = {
         self:getEntity(),
         self:getSupport(),
-        Helpers.getEntityAt({
+        Util.getEntityAt({
             direction = Turn.around(self.forward.direction),
             position = self.forward.position + SIGNALS.edgeSignals[self.forward.direction][1],
             surface = self.surface,
             type = { "rail-signal", "rail-chain-signal" },
             layer = self.forward.layer,
         }),
-        Helpers.getEntityAt({
+        Util.getEntityAt({
             direction = self.forward.direction,
             position = self.forward.position + SIGNALS.edgeSignals[Turn.around(self.forward.direction)][2],
             surface = self.surface,
             type = { "rail-signal", "rail-chain-signal" },
             layer = self.forward.layer,
         }),
-        Helpers.getEntityAt({
+        Util.getEntityAt({
             direction = Turn.around(self.backward.direction),
             position = self.backward.position + SIGNALS.edgeSignals[self.backward.direction][1],
             surface = self.surface,
             type = { "rail-signal", "rail-chain-signal" },
             layer = self.backward.layer,
         }),
-        Helpers.getEntityAt({
+        Util.getEntityAt({
             direction = self.backward.direction,
             position = self.backward.position + SIGNALS.edgeSignals[Turn.around(self.backward.direction)][2],
             surface = self.surface,
             type = { "rail-signal", "rail-chain-signal" },
             layer = self.backward.layer,
         }),
-        SIGNALS.bonusSignals[self.category] and Helpers.getEntityAt({
+        SIGNALS.bonusSignals[self.category] and Util.getEntityAt({
             direction = SIGNALS.bonusSignals[self.category][self.rotation].signalDir,
             position = self.position + SIGNALS.bonusSignals[self.category][self.rotation].position,
             surface = self.surface,

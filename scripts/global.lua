@@ -82,13 +82,15 @@ function drpError(player, message)
 end
 
 --
--- Scoped helpers
+-- Scoped Methods
 --
+
+Util = {}
 
 --- Gets an entity's type, respecting ghost entities.
 --- @param entity LuaEntity
 --- @return string
-local function getEntityType(entity)
+function Util.getEntityType(entity)
     return entity.type == "entity-ghost" and entity.ghost_type or entity.type
 end
 
@@ -96,14 +98,14 @@ end
 --- @param a TrueDirection
 --- @param b TrueDirection
 --- @return Turn
-local function getTurnFromEntityDirections(a, b)
+function Util.getTurnFromEntityDirections(a, b)
     return ((a - b + 9) % 16) - 1
 end
 
 --- Finds an exact entity in the game world.
 --- @param params { type: string | string[], surface: LuaSurface, position: Vector2d, direction: defines.direction, layer: defines.rail_layer? }
 --- @return LuaEntity?
-local function getEntityAt(params)
+function Util.getEntityAt(params)
     -- Search for real entities first.
     for _, entity in pairs(params.surface.find_entities_filtered({
         type = params.type,
@@ -144,7 +146,7 @@ end
 --- Iterates over the edges of a path
 --- @param path RailPath
 --- @return fun(): number?, RailPointer?
-local function edgeIter(path)
+function Util.edgeIter(path)
     local index = -1
     local max = #path.segments
 
@@ -163,7 +165,7 @@ end
 --- Iterates over alignment points, ensuring 0 is first.
 --- @param alignmentPoints AlignmentPoint[]
 --- @return fun(points: AlignmentPoint[], key: number?): number?, AlignmentPoint?
-local function alignmentIterator(alignmentPoints)
+function Util.alignmentIterator(alignmentPoints)
     local first = alignmentPoints[0]
 
     return function(_, key)
@@ -185,7 +187,7 @@ end
 --- @return V?
 --- @return integer?
 --- @return T?
-local function first(target, func)
+function Util.first(target, func)
     for n, val in ipairs(target) do
         local result = func(val)
         if result then return result, n, val end
@@ -193,11 +195,23 @@ local function first(target, func)
     return nil, nil, nil
 end
 
-return {
-    getEntityType = getEntityType,
-    getTurnFromEntityDirections = getTurnFromEntityDirections,
-    getEntityAt = getEntityAt,
-    edgeIter = edgeIter,
-    alignmentIterator = alignmentIterator,
-    first = first,
-}
+-- Todo: organize my requires better.
+local EventParser = require("scripts.classes.event-parser")
+
+--- Resets the state of `storage` to its initial values.
+function Util.resetState()
+    storage.version = script.active_mods[script.mod_name]
+
+    --- @type { [number]: EventParser }
+    storage.parsers = {}
+    --- @type { [number]: { pointer: RailPointer, debt: number } }
+    storage.history = {}
+
+
+    for index, player in pairs(game.players) do
+        storage.parsers[index] = EventParser.new(player)
+        storage.history[index] = {}
+    end
+
+    -- TODO: Reset shortcut state
+end

@@ -2,11 +2,10 @@ local LENGTHS = require("scripts.rail-consts.raw.length")
 local SIGNALS = require("scripts.rail-consts.raw.signals")
 
 local Turn = require("scripts.classes.turn")
-local helpers = require("scripts.helpers")
 local RailSegment = require("scripts.classes.rail-segment")
 
 local function getSignal(pointer, offset)
-    return helpers.getEntityAt({
+    return Util.getEntityAt({
         type = { "rail-signal", "rail-chain-signal" },
         surface = pointer.surface,
         position = pointer.position + offset,
@@ -28,7 +27,7 @@ local function getBonusSignal(segment, direction)
     -- Signals are configured assuming you're approaching them in their direction.
     -- This algorithm is backtracking, so we're looking for signals opposite of
     -- our direction of travel
-    return helpers.getEntityAt({
+    return Util.getEntityAt({
         type = { "rail-signal", "rail-chain-signal" },
         surface = segment.surface,
         position = segment.position + bonusSignal.position,
@@ -100,7 +99,7 @@ return function(builder)
     local newDistanceSince = getDistanceSinceSignal(builder.newPath.backward, minSignalDistance)
 
     -- Special iter needed so 0 is called first.
-    for _, alignmentPoint in helpers.alignmentIterator(builder.alignmentPoints) do
+    for _, alignmentPoint in Util.alignmentIterator(builder.alignmentPoints) do
         -- Advance both sides and count distance.
         while mainIndex < alignmentPoint.mainIndex do
             mainIndex = mainIndex + 1
