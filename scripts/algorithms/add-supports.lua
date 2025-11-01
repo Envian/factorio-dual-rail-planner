@@ -74,8 +74,22 @@ return function(builder)
     for index, segment in ipairs(builder.newPath.segments) do
         local alignmentPoint = builder.alignmentPoints[index]
 
-        if segment.forward.layer ==defines.rail_layer.ground then
+        local length = LENGTH[segment.category][segment.rotation]
+        if currentDistance <= supportRange and currentDistance + length > supportRange then
+            currentDistance = supportRange + length
+        else
+            currentDistance = currentDistance + length
+        end
+
+        if segment.forward.layer == defines.rail_layer.ground then
             currentDistance = 0
+        elseif currentDistance > maxRange then
+            table.insert(builder.entities, {
+                type = builder.plannerInfo.supportName,
+                position = segment.backward.position,
+                direction = segment.backward.direction % 8
+            })
+            currentDistance = length
         elseif alignmentPoint and hasSupport(alignmentPoint.mainPoint) then
             table.insert(builder.entities, {
                 type = builder.plannerInfo.supportName,
@@ -83,26 +97,10 @@ return function(builder)
                 direction = segment.forward.direction % 8
             })
             currentDistance = 0
-        else
-            local length = LENGTH[segment.category][segment.rotation]
-            if currentDistance <= supportRange and currentDistance + length > supportRange then
-                currentDistance = supportRange + length
-            else
-                currentDistance = currentDistance + length
-            end
-
-            if currentDistance > maxRange then
-                table.insert(builder.entities, {
-                    type = builder.plannerInfo.supportName,
-                    position = segment.backward.position,
-                    direction = segment.backward.direction % 8
-                })
-                currentDistance = length
-            end
         end
     end
 
-    if currentDistance > supportRange then
+    if currentDistance >= 4 and currentDistance > supportRange then
         table.insert(builder.entities, {
             type = builder.plannerInfo.supportName,
             position = builder.newPath.forward.position,
