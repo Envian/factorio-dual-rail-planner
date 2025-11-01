@@ -15,8 +15,3 @@
     - Add alternative algorithm: cheater supports.
     - Better support for elevated starts and ends.
     - Option for support placement which avoids obsticals.
-
-
-## Release Checklist
-- Fix straight debt on clear
-- Maybe support building when clear if paused
