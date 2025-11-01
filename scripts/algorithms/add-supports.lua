@@ -1,4 +1,4 @@
-local TYPE_TO_CATEGORY = require("scripts.rail-consts.raw.type-to-category")
+local TYPE_TO_LAYER = require("scripts.rail-consts.raw.layer")
 local LENGTH = require("scripts.rail-consts.raw.length")
 
 local Helpers = require("scripts.helpers")
@@ -56,6 +56,8 @@ end
 --- Generates supports for the given path.
 --- @param builder RailBuilder
 return function(builder)
+    if not builder.plannerInfo.supportName then return end
+
     local supportRange = builder.plannerInfo.supportRange
     local maxRange = supportRange * 2
     local currentDistance = distanceSinceSupport(builder.newPath.backward, builder.plannerInfo)
@@ -81,7 +83,7 @@ return function(builder)
             currentDistance = currentDistance + length
         end
 
-        if segment.forward.layer == defines.rail_layer.ground then
+        if TYPE_TO_LAYER[segment.type] == defines.rail_layer.ground then
             currentDistance = 0
         elseif currentDistance > maxRange then
             table.insert(builder.entities, {
