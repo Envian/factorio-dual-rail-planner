@@ -1,7 +1,7 @@
 {
     "name": "dual-rail-planner",
-    "version": "0.2.3",
-    "factorio_version": "2.0",
+    "version": "0.2.4",
+    "factorio_version": "2.1",
     "title": "Dual Rail Planner",
     "author": "Envian",
     "homepage": "https://github.com/Envian/factorio-dual-rail-planner",
